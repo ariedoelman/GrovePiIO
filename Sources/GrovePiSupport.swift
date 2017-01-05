@@ -8,8 +8,7 @@
 
 #if os(Linux)
   import Glibc
-  //  import SMBus
-  import Cgrovepi
+  import CGrovepi
 #else
   import Darwin.C
 #endif
