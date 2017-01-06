@@ -1,6 +1,6 @@
 //
 //  GrovePiIO.swift
-//  hello-persistence
+//  GrovePiIO
 //
 //  Created by Arie Doelman on 29-12-16.
 //
