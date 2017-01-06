@@ -41,31 +41,54 @@ public enum DHTModuleType: UInt8 {
   case white = 1
 }
 
+public enum LEDColor {
+  case green, red, blue
+}
+
 public protocol GrovePiBus {
-  func port(_ port: GrovePiPort) -> GrovePiIO
+  func temperatureAndHumiditySensor(at: GrovePiPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor
+  func ultrasonicRangeSensor(at: GrovePiPort) throws -> UltrasonicRangeSensor
+  func ledLight(at: GrovePiPort, color: LEDColor) throws -> LEDLight
+  func lightSensor(at: GrovePiPort) throws -> LightSensor
+  func momentaryOnOffButton(at: GrovePiPort) throws -> MomentaryOnOffButton
+  func potentioMeter(at: GrovePiPort) throws -> PotentioMeter
 }
 
 public protocol GrovePiIO {
   var bus: GrovePiBus { get }
   var port: GrovePiPort { get }
-  func setIOMode(to ioMode: IOMode) throws
-  func readAnalogueValue() throws -> UInt16
-  func readDigitalValue() throws -> DigitalValue
-  func readTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float)
-  func readUltrasonicRange() throws -> UInt16
+}
+
+public protocol TemperatureAndHumiditySensor: GrovePiIO {
+  var moduleType: DHTModuleType { get }
+  func readTH() throws -> (temperature: Float, humidity: Float)
+}
+
+public protocol UltrasonicRangeSensor: GrovePiIO {
+  func readCentimeters() throws -> UInt16
+}
+
+public protocol LightSensor: GrovePiIO {
+  func readIntensity() throws -> UInt16
+}
+
+public protocol LEDLight: GrovePiIO {
+  var color: LEDColor{ get }
   func setValue(_ digitalValue: DigitalValue) throws
   func setValue(_ value: UInt8) throws
+}
+
+public protocol MomentaryOnOffButton: GrovePiIO {
+  func readState() throws -> DigitalValue
+}
+
+public protocol PotentioMeter: GrovePiIO {
+  func readValue() throws -> UInt16
 }
 
 public struct GrovePiBusFactory {
   public static func getBus() throws -> GrovePiBus {
     return try GrovePiArduinoBus1.getBus()
-  }
-}
-
-public extension GrovePiIO {
-  public func readTemperatureAndHumidity() throws -> (temperature: Float, humidity: Float) {
-    return try readTemperatureAndHumidity(moduleType: .blue)
   }
 }
 

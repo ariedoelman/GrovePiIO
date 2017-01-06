@@ -28,8 +28,28 @@ final class GrovePiArduinoBus1: GrovePiBus {
     return bus!
   }
 
-  public func port(_ port: GrovePiPort) -> GrovePiIO {
-    return GrovePiArduinoIO(bus: self, port: port)
+  func temperatureAndHumiditySensor(at port: GrovePiPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor {
+    return try ATemperatureAndHumiditySensor(bus: self, port: port, moduleType: moduleType)
+  }
+
+  func ultrasonicRangeSensor(at port: GrovePiPort) throws -> UltrasonicRangeSensor {
+    return try AUltrasonicRangeSensor(bus: self, port: port)
+  }
+
+  func ledLight(at port: GrovePiPort, color: LEDColor) throws -> LEDLight {
+    return try ALEDLight(bus: self, port: port, color: color)
+  }
+
+  func lightSensor(at port: GrovePiPort) throws -> LightSensor {
+    return try ALightSensor(bus: self, port: port)
+  }
+
+  func momentaryOnOffButton(at port: GrovePiPort) throws -> MomentaryOnOffButton {
+    return try AMomentaryOnOffButton(bus: self, port: port)
+  }
+
+  func potentioMeter(at port: GrovePiPort) throws -> PotentioMeter {
+    return try APotentioMeter(bus: self, port: port)
   }
 
   init() throws {
@@ -44,44 +64,112 @@ final class GrovePiArduinoBus1: GrovePiBus {
 
 }
 
-struct GrovePiArduinoIO: GrovePiIO {
+fileprivate class GrovePiArduinoIO: GrovePiIO {
   var bus: GrovePiBus { return bus1 }
   fileprivate var bus1: GrovePiArduinoBus1
   fileprivate(set) var port: GrovePiPort
 
-  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort) {
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort, ioMode: IOMode) throws {
     self.bus1 = bus
     self.port = port
-  }
-
-  public func setIOMode(to ioMode: IOMode) throws {
     try doSetIOMode(to: ioMode)
   }
 
-  public func readAnalogueValue() throws -> UInt16 {
+  fileprivate func readAnalogueValue() throws -> UInt16 {
     return try doReadAnalogueValue()
   }
 
-  public func readUltrasonicRange() throws -> UInt16 {
+  fileprivate func readUltrasonicRange() throws -> UInt16 {
     return try doReadUltraSonicRange()
   }
 
-  public func readDigitalValue() throws -> DigitalValue {
+  fileprivate func readDigitalValue() throws -> DigitalValue {
     return try doReadDigitalValue()
   }
 
-  public func readTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
+  fileprivate func readTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
     return try doReadTemperatureAndHumidity(moduleType: moduleType)
   }
 
-  public func setValue(_ digitalValue: DigitalValue) throws {
+  fileprivate func setDigitalValue(_ digitalValue: DigitalValue) throws {
     try doWriteDigitalValue(digitalValue)
   }
 
-  public func setValue(_ value: UInt8) throws {
+  fileprivate func setAnalogueValue(_ value: UInt8) throws {
     try doWriteAnalogueValue(value)
   }
+}
 
+fileprivate final class ATemperatureAndHumiditySensor: GrovePiArduinoIO, TemperatureAndHumiditySensor {
+  let moduleType: DHTModuleType
+
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort, moduleType: DHTModuleType) throws {
+    self.moduleType = moduleType
+    try super.init(bus: bus, port: port, ioMode: .input)
+  }
+
+  func readTH() throws -> (temperature: Float, humidity: Float) {
+    return try readTemperatureAndHumidity(moduleType: moduleType)
+  }
+
+}
+
+fileprivate final class ALightSensor: GrovePiArduinoIO, LightSensor {
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort) throws {
+    try super.init(bus: bus, port: port, ioMode: .input)
+  }
+
+  func readIntensity() throws -> UInt16 {
+    return try readAnalogueValue()
+  }
+}
+
+
+fileprivate final class AUltrasonicRangeSensor: GrovePiArduinoIO, UltrasonicRangeSensor {
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort) throws {
+    try super.init(bus: bus, port: port, ioMode: .input)
+  }
+
+  func readCentimeters() throws -> UInt16 {
+    return try readAnalogueValue()
+  }
+}
+
+fileprivate final class ALEDLight: GrovePiArduinoIO, LEDLight {
+  let color: LEDColor
+
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort, color: LEDColor) throws {
+    self.color = color
+    try super.init(bus: bus, port: port, ioMode: .output)
+  }
+
+  func setValue(_ digitalValue: DigitalValue) throws {
+    try setDigitalValue(digitalValue)
+  }
+
+  func setValue(_ value: UInt8) throws {
+    try setAnalogueValue(value)
+  }
+}
+
+fileprivate final class AMomentaryOnOffButton: GrovePiArduinoIO, MomentaryOnOffButton {
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort) throws {
+    try super.init(bus: bus, port: port, ioMode: .input)
+  }
+
+  func readState() throws -> DigitalValue {
+    return try readDigitalValue()
+  }
+}
+
+fileprivate final class APotentioMeter: GrovePiArduinoIO, PotentioMeter {
+  fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort) throws {
+    try super.init(bus: bus, port: port, ioMode: .input)
+  }
+
+  func readValue() throws -> UInt16 {
+    return try readAnalogueValue()
+  }
 }
 
 extension GrovePiArduinoIO {
