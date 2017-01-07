@@ -291,7 +291,7 @@ extension GrovePiArduinoBus1 {
       }
       return r_buf
     #else
-      return []
+      return [UInt8](repeating: 0, count: 32)
     #endif
   }
 
