@@ -204,6 +204,7 @@ extension GrovePiArduinoIO {
 
   fileprivate func doReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
     try bus1.writeBlock(Command.temperatureAndHumidityRead.rawValue, port.id, moduleType.rawValue)
+    usleep(25_000) // without delay always returns zeroes the first time
     _ = try bus1.readByte()
     let bytes = try bus1.readBlock()
     var temperature = Float(ieee754LittleEndianBytes: bytes, offset: 1)
