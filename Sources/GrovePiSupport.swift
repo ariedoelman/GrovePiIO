@@ -28,27 +28,27 @@ final class GrovePiArduinoBus1: GrovePiBus {
     return bus!
   }
 
-  func temperatureAndHumiditySensor(at port: GrovePiPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor {
+  func temperatureAndHumiditySensor(at port: GrovePiDigitalPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor {
     return try ATemperatureAndHumiditySensor(bus: self, port: port, moduleType: moduleType)
   }
 
-  func ultrasonicRangeSensor(at port: GrovePiPort) throws -> UltrasonicRangeSensor {
+  func ultrasonicRangeSensor(at port: GrovePiDigitalPort) throws -> UltrasonicRangeSensor {
     return try AUltrasonicRangeSensor(bus: self, port: port)
   }
 
-  func ledLight(at port: GrovePiPort, color: LEDColor) throws -> LEDLight {
+  func ledLight(at port: GrovePiDigitalPort, color: LEDColor) throws -> LEDLight {
     return try ALEDLight(bus: self, port: port, color: color)
   }
 
-  func lightSensor(at port: GrovePiPort) throws -> LightSensor {
+  func lightSensor(at port: GrovePiAnaloguePort) throws -> LightSensor {
     return try ALightSensor(bus: self, port: port)
   }
 
-  func momentaryOnOffButton(at port: GrovePiPort) throws -> MomentaryOnOffButton {
+  func momentaryOnOffButton(at port: GrovePiDigitalPort) throws -> MomentaryOnOffButton {
     return try AMomentaryOnOffButton(bus: self, port: port)
   }
 
-  func potentioMeter(at port: GrovePiPort) throws -> PotentioMeter {
+  func potentioMeter(at port: GrovePiAnaloguePort) throws -> PotentioMeter {
     return try APotentioMeter(bus: self, port: port)
   }
 

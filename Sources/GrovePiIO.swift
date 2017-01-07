@@ -11,10 +11,22 @@ public enum IOMode: UInt8 {
   case output = 1
 }
 
-public enum GrovePiPort: UInt8 {
-  case A0 = 10
-  case A1 = 11
-  case A2 = 12
+public enum PortType {
+  case analogue, digital, i2c, uart
+}
+
+public protocol GrovePiPort {
+  var id: UInt8 { get }
+  var type: PortType { get }
+}
+
+public enum GrovePiAnaloguePort: UInt8 {
+  case A0 = 0
+  case A1 = 1
+  case A2 = 2
+}
+
+public enum GrovePiDigitalPort: UInt8 {
   case D2 = 2
   case D3 = 3
   case D4 = 4
@@ -22,8 +34,17 @@ public enum GrovePiPort: UInt8 {
   case D6 = 6
   case D7 = 7
   case D8 = 8
+}
 
-  public var id: UInt8 { return rawValue % 10 }
+public enum GrovePiI2CPort: UInt8 {
+  case i2c_1 = 1
+  case i2c_2 = 2
+  case i2c_3 = 3
+}
+
+public enum GrovePiUARTPort: UInt8 {
+  case rpiSerial = 1
+  case serial = 2
 }
 
 public enum DigitalValue: UInt8 {
@@ -46,12 +67,12 @@ public enum LEDColor {
 }
 
 public protocol GrovePiBus {
-  func temperatureAndHumiditySensor(at: GrovePiPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor
-  func ultrasonicRangeSensor(at: GrovePiPort) throws -> UltrasonicRangeSensor
-  func ledLight(at: GrovePiPort, color: LEDColor) throws -> LEDLight
-  func lightSensor(at: GrovePiPort) throws -> LightSensor
-  func momentaryOnOffButton(at: GrovePiPort) throws -> MomentaryOnOffButton
-  func potentioMeter(at: GrovePiPort) throws -> PotentioMeter
+  func temperatureAndHumiditySensor(at: GrovePiDigitalPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor
+  func ultrasonicRangeSensor(at: GrovePiDigitalPort) throws -> UltrasonicRangeSensor
+  func ledLight(at: GrovePiDigitalPort, color: LEDColor) throws -> LEDLight
+  func lightSensor(at: GrovePiAnaloguePort) throws -> LightSensor
+  func momentaryOnOffButton(at: GrovePiDigitalPort) throws -> MomentaryOnOffButton
+  func potentioMeter(at: GrovePiAnaloguePort) throws -> PotentioMeter
 }
 
 public protocol GrovePiIO {
@@ -91,6 +112,28 @@ public struct GrovePiBusFactory {
     return try GrovePiArduinoBus1.getBus()
   }
 }
+
+extension GrovePiAnaloguePort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .analogue }
+}
+
+extension GrovePiDigitalPort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .digital }
+}
+
+extension GrovePiI2CPort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .i2c }
+}
+
+extension GrovePiUARTPort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .uart }
+}
+
+
 
 
 
