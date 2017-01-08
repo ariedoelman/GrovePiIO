@@ -5,6 +5,7 @@
 //  Created by Arie Doelman on 29-12-16.
 //
 //
+import Foundation
 
 public enum IOMode: UInt8 {
   case input = 0
@@ -66,7 +67,7 @@ public enum LEDColor {
   case green, red, blue
 }
 
-public protocol GrovePiBus {
+public protocol GrovePiBus: class {
   func temperatureAndHumiditySensor(at: GrovePiDigitalPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor
   func ultrasonicRangeSensor(at: GrovePiDigitalPort) throws -> UltrasonicRangeSensor
   func ledLight(at: GrovePiDigitalPort, color: LEDColor) throws -> LEDLight
@@ -75,14 +76,21 @@ public protocol GrovePiBus {
   func potentioMeter(at: GrovePiAnaloguePort) throws -> PotentioMeter
 }
 
-public protocol GrovePiIO {
+public protocol ChangeReportID: class {
+  weak var source: GrovePiIO? { get }
+  var id: Int { get }
+}
+
+public protocol GrovePiIO: class {
   var bus: GrovePiBus { get }
   var port: GrovePiPort { get }
+  func cancelChangeReport(withID: ChangeReportID)
 }
 
 public protocol TemperatureAndHumiditySensor: GrovePiIO {
   var moduleType: DHTModuleType { get }
-  func readTH() throws -> (temperature: Float, humidity: Float)
+  func readTemperatureAndHumidity() throws -> (temperature: Float, humidity: Float)
+  func onChange(report: @escaping (_ temperature: Float, _ humidity: Float) -> ()) -> ChangeReportID
 }
 
 public protocol UltrasonicRangeSensor: GrovePiIO {
@@ -111,26 +119,6 @@ public struct GrovePiBusFactory {
   public static func getBus() throws -> GrovePiBus {
     return try GrovePiArduinoBus1.getBus()
   }
-}
-
-extension GrovePiAnaloguePort: GrovePiPort {
-  public var id: UInt8 { return rawValue }
-  public var type: PortType { return .analogue }
-}
-
-extension GrovePiDigitalPort: GrovePiPort {
-  public var id: UInt8 { return rawValue }
-  public var type: PortType { return .digital }
-}
-
-extension GrovePiI2CPort: GrovePiPort {
-  public var id: UInt8 { return rawValue }
-  public var type: PortType { return .i2c }
-}
-
-extension GrovePiUARTPort: GrovePiPort {
-  public var id: UInt8 { return rawValue }
-  public var type: PortType { return .uart }
 }
 
 

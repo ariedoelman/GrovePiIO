@@ -12,10 +12,33 @@
 #else
   import Darwin.C
 #endif
+import Foundation
+
+
+extension GrovePiAnaloguePort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .analogue }
+}
+
+extension GrovePiDigitalPort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .digital }
+}
+
+extension GrovePiI2CPort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .i2c }
+}
+
+extension GrovePiUARTPort: GrovePiPort {
+  public var id: UInt8 { return rawValue }
+  public var type: PortType { return .uart }
+}
 
 final class GrovePiArduinoBus1: GrovePiBus {
   public var retryCount: UInt8 = 9 // Following the example of GrovePi Python implementation
   public var delayBeforeRetryInMicroSeconds: UInt32 = 1_000
+  public let access: GrovePiBusAccess
   fileprivate static var bus: GrovePiBus? = nil
   fileprivate var fd: Int32 = -1
   fileprivate var r_buf = [UInt8](repeating: 0, count: 32)
@@ -53,6 +76,7 @@ final class GrovePiArduinoBus1: GrovePiBus {
   }
 
   init() throws {
+    self.access = GrovePiBusAccess()
     try openIO()
   }
 
@@ -72,32 +96,37 @@ fileprivate class GrovePiArduinoIO: GrovePiIO {
   fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort, ioMode: IOMode) throws {
     self.bus1 = bus
     self.port = port
-    try doSetIOMode(to: ioMode)
+    try indirectSetIOMode(to: ioMode)
   }
 
   fileprivate func readAnalogueValue() throws -> UInt16 {
-    return try doReadAnalogueValue()
+    return try indirectReadAnalogueValue()
   }
 
   fileprivate func readUltrasonicRange() throws -> UInt16 {
-    return try doReadUltraSonicRange()
+    return try indirectReadUltraSonicRange()
   }
 
   fileprivate func readDigitalValue() throws -> DigitalValue {
-    return try doReadDigitalValue()
+    return try indirectReadDigitalValue()
   }
 
   fileprivate func readTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
-    return try doReadTemperatureAndHumidity(moduleType: moduleType)
+    return try indirectReadTemperatureAndHumidity(moduleType: moduleType)
   }
 
   fileprivate func setDigitalValue(_ digitalValue: DigitalValue) throws {
-    try doWriteDigitalValue(digitalValue)
+    try indirectWriteDigitalValue(digitalValue)
   }
 
   fileprivate func setAnalogueValue(_ value: UInt8) throws {
-    try doWriteAnalogueValue(value)
+    try indirectWriteAnalogueValue(value)
   }
+
+  func cancelChangeReport(withID reportID: ChangeReportID) {
+    bus1.access.removeSensorScan(withID: reportID, from: self)
+  }
+
 }
 
 fileprivate final class ATemperatureAndHumiditySensor: GrovePiArduinoIO, TemperatureAndHumiditySensor {
@@ -108,8 +137,34 @@ fileprivate final class ATemperatureAndHumiditySensor: GrovePiArduinoIO, Tempera
     try super.init(bus: bus, port: port, ioMode: .input)
   }
 
-  func readTH() throws -> (temperature: Float, humidity: Float) {
+  func readTemperatureAndHumidity() throws -> (temperature: Float, humidity: Float) {
     return try readTemperatureAndHumidity(moduleType: moduleType)
+  }
+
+  func onChange(report: @escaping (_ temperature: Float, _ humidity: Float) -> ()) -> ChangeReportID {
+    let areDifferent: ((Float, Float), (Float, Float)) -> (Bool) = { value1,value2 in
+      if value1.0.isNaN {
+        if !value2.0.isNaN {
+          return true
+        }
+      } else if value2.0.isNaN || abs(value1.0 - value2.0) >= 1.0 {
+        return true
+      }
+      if value1.1.isNaN {
+        if !value2.1.isNaN {
+          return true
+        }
+      } else if value2.1.isNaN || abs(value1.1 - value2.1) >= 1.0 {
+        return true
+      }
+      return false
+    }
+    return bus1.access.addTwoFloatsSensorScan(at: self, readInput: directReadTemperatureAndHumidity,
+                                                ifChanged: areDifferent, reportChange: report)
+  }
+
+  private func directReadTemperatureAndHumidity() throws -> (temperature: Float, humidity: Float) {
+    return try indirectReadTemperatureAndHumidity(moduleType: moduleType)
   }
 
 }
@@ -185,40 +240,63 @@ extension GrovePiArduinoIO {
 
   // MARK: - private implementation details
 
-  fileprivate func doSetIOMode(to ioMode: IOMode) throws {
+  private func directSetIOMode(to ioMode: IOMode) throws {
     try bus1.writeBlock(Command.pinMode.rawValue, port.id, ioMode.rawValue)
   }
 
-  fileprivate func doReadAnalogueValue() throws -> UInt16 {
+  fileprivate func indirectSetIOMode(to ioMode: IOMode) throws {
+    try bus1.access.writeAnalogueValue(ioMode.rawValue) { _ in try directSetIOMode(to: ioMode) }
+  }
+
+  private func directReadAnalogueValue() throws -> UInt16 {
     try bus1.writeBlock(Command.analogRead.rawValue, port.id)
+    usleep(25_000) // without delay always returns zeroes the first time
     _ = try bus1.readByte()
     let bytes = try bus1.readBlock()
     return (UInt16(bytes[1]) << 8) | UInt16(bytes[2])
   }
 
-  fileprivate func doReadDigitalValue() throws -> DigitalValue {
+  fileprivate func indirectReadAnalogueValue() throws -> UInt16 {
+    return try bus1.access.readAnalogueValue(readInput: directReadAnalogueValue)
+  }
+
+  private func directReadDigitalValue() throws -> DigitalValue {
     try bus1.writeBlock(Command.digitalRead.rawValue, port.id)
     let byte = try bus1.readByte()
     return byte == 0 ? .low : .high
   }
 
-  fileprivate func doReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
+  fileprivate func indirectReadDigitalValue() throws -> DigitalValue {
+    return try bus1.access.readDigitalValue(readInput: directReadDigitalValue)
+  }
+
+  private func directReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
     try bus1.writeBlock(Command.temperatureAndHumidityRead.rawValue, port.id, moduleType.rawValue)
     usleep(25_000) // without delay always returns zeroes the first time
     _ = try bus1.readByte()
     let bytes = try bus1.readBlock()
     var temperature = Float(ieee754LittleEndianBytes: bytes, offset: 1)
-    if !(temperature > -100.0 && temperature < 150.0) {
+    if temperature > -100.0 && temperature < 150.0 {
+      temperature = (temperature * 10.0).rounded() / 10.0
+    } else {
       temperature = .nan
     }
     var humidity = Float(ieee754LittleEndianBytes: bytes, offset: 5)
-    if !(humidity >= 0.0 && humidity <= 100.0) {
+    if humidity >= 0.0 && humidity <= 100.0 {
+      humidity = (humidity * 10.0).rounded() / 10.0
+    } else {
       humidity = .nan
     }
     return (temperature, humidity)
   }
 
-  fileprivate func doReadUltraSonicRange() throws -> UInt16 {
+  fileprivate func indirectReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
+    return try bus1.access.readTwoFloats {
+      return try self.directReadTemperatureAndHumidity(moduleType: moduleType)
+    }
+  }
+
+  private func directReadUltraSonicRange() throws -> UInt16 {
     try bus1.writeBlock(Command.ultrasonicRangeRead.rawValue, port.id)
     usleep(51_000) // firmware has a time of 50ms so wait for more than that
     _ = try bus1.readByte()
@@ -226,18 +304,25 @@ extension GrovePiArduinoIO {
     return (UInt16(bytes[1]) << 8) | UInt16(bytes[2])
   }
 
-  fileprivate func doWriteAnalogueValue(_ value: UInt8) throws {
+  fileprivate func indirectReadUltraSonicRange() throws -> UInt16 {
+    return try bus1.access.readAnalogueValue(readInput: directReadUltraSonicRange)
+  }
+
+  private func directWriteAnalogueValue(_ value: UInt8) throws {
     try bus1.writeBlock(Command.analogWrite.rawValue, port.id, value)
   }
 
-  fileprivate func doWriteDigitalValue(_ value: DigitalValue) throws {
+  private func directWriteDigitalValue(_ value: DigitalValue) throws {
     try bus1.writeBlock(Command.digitalWrite.rawValue, port.id, value.rawValue)
   }
 
-  fileprivate func doWriteAnalogueValue(to value: UInt8) throws {
-    try bus1.writeBlock(Command.digitalWrite.rawValue, port.id, value)
+  fileprivate func indirectWriteAnalogueValue(_ value: UInt8) throws {
+    try bus1.access.writeAnalogueValue(value, writeOutput: directWriteAnalogueValue)
   }
 
+  fileprivate func indirectWriteDigitalValue(_ value: DigitalValue) throws {
+    try bus1.access.writeDigitalValue(value, writeOutput: directWriteDigitalValue)
+  }
 }
 
 extension GrovePiArduinoBus1 {
@@ -320,6 +405,8 @@ fileprivate extension Float {
     self.init(bitPattern: (UInt32(fbs[i+3]) << 24) | (UInt32(fbs[i+2]) << 16) | (UInt32(fbs[i+1]) << 8) | UInt32(fbs[i]))
   }
 }
+
+
 
 
 
