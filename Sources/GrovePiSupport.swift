@@ -164,7 +164,7 @@ fileprivate final class ATemperatureAndHumiditySensor: GrovePiArduinoIO, Tempera
   }
 
   private func directReadTemperatureAndHumidity() throws -> (temperature: Float, humidity: Float) {
-    return try indirectReadTemperatureAndHumidity(moduleType: moduleType)
+    return try directReadTemperatureAndHumidity(moduleType: moduleType)
   }
 
 }
@@ -177,6 +177,11 @@ fileprivate final class ALightSensor: GrovePiArduinoIO, LightSensor {
   func readIntensity() throws -> UInt16 {
     return try readAnalogueValue()
   }
+
+  fileprivate func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID {
+    let areDifferent: (UInt16, UInt16) -> (Bool) = { value1, value2 in abs(Int16(value1) - Int16(value2)) >= 2 }
+    return bus1.access.addAnalogueSensorScan(at: self, readInput: directReadAnalogueValue, ifChanged: areDifferent, reportChange: report)
+  }
 }
 
 
@@ -187,6 +192,11 @@ fileprivate final class AUltrasonicRangeSensor: GrovePiArduinoIO, UltrasonicRang
 
   func readCentimeters() throws -> UInt16 {
     return try readAnalogueValue()
+  }
+
+  fileprivate func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID {
+    let areDifferent: (UInt16, UInt16) -> (Bool) = { value1, value2 in abs(Int16(value1) - Int16(value2)) >= 2 }
+    return bus1.access.addAnalogueSensorScan(at: self, readInput: directReadAnalogueValue, ifChanged: areDifferent, reportChange: report)
   }
 }
 
@@ -215,6 +225,11 @@ fileprivate final class AMomentaryOnOffButton: GrovePiArduinoIO, MomentaryOnOffB
   func readState() throws -> DigitalValue {
     return try readDigitalValue()
   }
+
+  fileprivate func onChange(report: @escaping (DigitalValue) -> ()) -> ChangeReportID {
+    let areDifferent: (DigitalValue, DigitalValue) -> (Bool) = { value1, value2 in value1.rawValue != value2.rawValue }
+    return bus1.access.addDigitalSensorScan(at: self, readInput: directReadDigitalValue, ifChanged: areDifferent, reportChange: report)
+  }
 }
 
 fileprivate final class APotentioMeter: GrovePiArduinoIO, PotentioMeter {
@@ -224,6 +239,11 @@ fileprivate final class APotentioMeter: GrovePiArduinoIO, PotentioMeter {
 
   func readValue() throws -> UInt16 {
     return try readAnalogueValue()
+  }
+
+  fileprivate func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID {
+    let areDifferent: (UInt16, UInt16) -> (Bool) = { value1, value2 in abs(Int16(value1) - Int16(value2)) >= 2 }
+    return bus1.access.addAnalogueSensorScan(at: self, readInput: directReadAnalogueValue, ifChanged: areDifferent, reportChange: report)
   }
 }
 
@@ -245,10 +265,10 @@ extension GrovePiArduinoIO {
   }
 
   fileprivate func indirectSetIOMode(to ioMode: IOMode) throws {
-    try bus1.access.writeAnalogueValue(ioMode.rawValue) { _ in try directSetIOMode(to: ioMode) }
+    try bus1.access.writeAnalogueValue(ioMode.rawValue) { _ in try self.directSetIOMode(to: ioMode) }
   }
 
-  private func directReadAnalogueValue() throws -> UInt16 {
+  fileprivate func directReadAnalogueValue() throws -> UInt16 {
     try bus1.writeBlock(Command.analogRead.rawValue, port.id)
     usleep(25_000) // without delay always returns zeroes the first time
     _ = try bus1.readByte()
@@ -260,7 +280,7 @@ extension GrovePiArduinoIO {
     return try bus1.access.readAnalogueValue(readInput: directReadAnalogueValue)
   }
 
-  private func directReadDigitalValue() throws -> DigitalValue {
+  fileprivate func directReadDigitalValue() throws -> DigitalValue {
     try bus1.writeBlock(Command.digitalRead.rawValue, port.id)
     let byte = try bus1.readByte()
     return byte == 0 ? .low : .high
@@ -270,7 +290,7 @@ extension GrovePiArduinoIO {
     return try bus1.access.readDigitalValue(readInput: directReadDigitalValue)
   }
 
-  private func directReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
+  fileprivate func directReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
     try bus1.writeBlock(Command.temperatureAndHumidityRead.rawValue, port.id, moduleType.rawValue)
     usleep(25_000) // without delay always returns zeroes the first time
     _ = try bus1.readByte()
@@ -296,7 +316,7 @@ extension GrovePiArduinoIO {
     }
   }
 
-  private func directReadUltraSonicRange() throws -> UInt16 {
+  fileprivate func directReadUltraSonicRange() throws -> UInt16 {
     try bus1.writeBlock(Command.ultrasonicRangeRead.rawValue, port.id)
     usleep(51_000) // firmware has a time of 50ms so wait for more than that
     _ = try bus1.readByte()

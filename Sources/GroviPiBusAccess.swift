@@ -128,29 +128,24 @@ final class GrovePiBusAccess {
     checkScansStatusAfterRemove()
   }
 
-  func readTwoFloats(readInput: @escaping () throws -> ((Float,Float))) rethrows -> (Float, Float) {
-    print("TODO implement readTwoFloats")
-    return try readInput()
+  func readTwoFloats(readInput: @escaping () throws -> ((Float,Float))) throws -> (Float, Float) {
+    return try busAccessOperations.readValue(readInput: readInput)
   }
 
-  func readAnalogueValue(readInput: @escaping () throws -> (UInt16)) rethrows -> UInt16 {
-    print("TODO implement readAnalogueValue")
-    return try readInput()
+  func readAnalogueValue(readInput: @escaping () throws -> (UInt16)) throws -> UInt16 {
+    return try busAccessOperations.readValue(readInput: readInput)
   }
 
-  func readDigitalValue(readInput: @escaping () throws -> (DigitalValue)) rethrows -> DigitalValue {
-    print("TODO implement readDigitalValue")
-    return try readInput()
+  func readDigitalValue(readInput: @escaping () throws -> (DigitalValue)) throws -> DigitalValue {
+    return try busAccessOperations.readValue(readInput: readInput)
   }
 
-  func writeAnalogueValue(_ value: UInt8, writeOutput: (UInt8) throws -> ()) rethrows {
-    print("TODO implement writeAnalogueValue")
-    try writeOutput(value)
+  func writeAnalogueValue(_ value: UInt8, writeOutput: @escaping (UInt8) throws -> ()) throws {
+    try busAccessOperations.writeValue(value, writeOutput: writeOutput)
   }
 
-  func writeDigitalValue(_ value: DigitalValue, writeOutput: (DigitalValue) throws -> ()) rethrows {
-    print("TODO implement writeDigitalValue")
-    try writeOutput(value)
+  func writeDigitalValue(_ value: DigitalValue, writeOutput: @escaping (DigitalValue) throws -> ()) throws {
+    try busAccessOperations.writeValue(value, writeOutput: writeOutput)
   }
 
   private func checkScansStatusBeforeAdd() {
@@ -192,11 +187,9 @@ final class GrovePiBusAccess {
       }
     }
     criticalSectionLock.lock()
-    twoFloatsUpdates.forEach { key, value in
-      if twoFloatsSensorScansMap[key] != nil {
-        twoFloatsSensorScansMap[key] = value
-      }
-    }
+    twoFloatsUpdates
+      .filter({ k, _ in twoFloatsSensorScansMap[k] != nil })
+      .forEach { k, v in twoFloatsSensorScansMap[k] = v }
     twoFloatsRemovals.forEach { key in twoFloatsSensorScansMap.removeValue(forKey: key) }
     criticalSectionLock.unlock()
   }
@@ -221,11 +214,9 @@ final class GrovePiBusAccess {
       }
     }
     criticalSectionLock.lock()
-    analogueUpdates.forEach { key, value in
-      if analogueSensorScansMap[key] != nil {
-        analogueSensorScansMap[key] = value
-      }
-    }
+    analogueUpdates
+      .filter({ k, _ in analogueSensorScansMap[k] != nil })
+      .forEach { k, v in analogueSensorScansMap[k] = v }
     analogueRemovals.forEach { key in analogueSensorScansMap.removeValue(forKey: key) }
     criticalSectionLock.unlock()
   }
@@ -250,12 +241,10 @@ final class GrovePiBusAccess {
       }
     }
     criticalSectionLock.lock()
-    digitalUpdates.forEach { key, value in
-      if digitalSensorScansMap[key] != nil {
-        digitalSensorScansMap[key] = value
-      }
-    }
-    digitalRemovals.forEach { key in digitalSensorScansMap.removeValue(forKey: key) }
+    digitalUpdates
+      .filter({ k, _ in digitalSensorScansMap[k] != nil })
+      .forEach { k, v in digitalSensorScansMap[k] = v }
+    digitalRemovals.forEach { k in digitalSensorScansMap.removeValue(forKey: k) }
     criticalSectionLock.unlock()
   }
 
@@ -281,7 +270,7 @@ enum ReadyState: Int {
 fileprivate final class BusAccessOperations {
   private let serialQueue: OperationQueue
   private let otherOperationQueue: OperationQueue
-  private let readyLock: NSConditionLock
+  private let scheduleLock: NSConditionLock
   private var scanSchedulerOperation: ScanSchedulerOperation?
 
   init() {
@@ -290,16 +279,52 @@ fileprivate final class BusAccessOperations {
     serialQueue.maxConcurrentOperationCount = 1
     otherOperationQueue = OperationQueue()
     otherOperationQueue.qualityOfService = .default
-    readyLock = NSConditionLock(condition: .waiting)
+    scheduleLock = NSConditionLock(condition: .waiting)
   }
 
   func start(doScansTask: @escaping () -> ()) {
-    scanSchedulerOperation = ScanSchedulerOperation(readyLock: readyLock, serialQueue: serialQueue, doScansTask: doScansTask)
+    scanSchedulerOperation = ScanSchedulerOperation(readyLock: scheduleLock, serialQueue: serialQueue, doScansTask: doScansTask)
     otherOperationQueue.addOperation(scanSchedulerOperation!)
   }
 
   func addOtherOperation(_ block: @escaping () -> ()) {
     otherOperationQueue.addOperation(block)
+  }
+
+  func readValue<DT>(readInput: @escaping () throws -> (DT)) throws -> DT {
+    var result: DT? = nil
+    var errorResult: Error? = nil
+    var ioMutex = Mutex(initialAcquires: 1)
+    serialQueue.addOperation {
+      do {
+        result = try readInput()
+      } catch {
+        errorResult = error
+      }
+      ioMutex.release()
+    }
+    ioMutex.acquire()
+    if let error = errorResult {
+      throw error
+    }
+    return result!
+  }
+
+  func writeValue<DT>(_ value: DT, writeOutput: @escaping (DT) throws -> ()) throws {
+    var errorResult: Error? = nil
+    var ioMutex = Mutex(initialAcquires: 1)
+    serialQueue.addOperation {
+      do {
+        try writeOutput(value)
+      } catch {
+        errorResult = error
+      }
+      ioMutex.release()
+    }
+    ioMutex.acquire()
+    if let error = errorResult {
+      throw error
+    }
   }
 
   func stopScansTask() {
@@ -334,6 +359,32 @@ fileprivate final class ScanSchedulerOperation: Operation {
       }
       readyLock.unlock(withCondition: .busy)
     }
+  }
+}
+
+struct Mutex {
+  private var acquires: Int
+  private let criticalSection: NSLock
+  private let condition: NSCondition
+  init(initialAcquires: Int = 0) {
+    acquires = initialAcquires
+    criticalSection = NSLock()
+    condition = NSCondition()
+  }
+  mutating func acquire() {
+    criticalSection.lock()
+    while acquires > 0 {
+      condition.wait()
+    }
+    acquires += 1
+    criticalSection.unlock()
+  }
+
+  mutating func release() {
+    criticalSection.lock()
+    acquires -= 1
+    condition.signal()
+    criticalSection.unlock()
   }
 }
 

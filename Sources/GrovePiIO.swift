@@ -95,10 +95,12 @@ public protocol TemperatureAndHumiditySensor: GrovePiIO {
 
 public protocol UltrasonicRangeSensor: GrovePiIO {
   func readCentimeters() throws -> UInt16
+  func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID
 }
 
 public protocol LightSensor: GrovePiIO {
   func readIntensity() throws -> UInt16
+  func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID
 }
 
 public protocol LEDLight: GrovePiIO {
@@ -109,10 +111,12 @@ public protocol LEDLight: GrovePiIO {
 
 public protocol MomentaryOnOffButton: GrovePiIO {
   func readState() throws -> DigitalValue
+  func onChange(report: @escaping (DigitalValue) -> ()) -> ChangeReportID
 }
 
 public protocol PotentioMeter: GrovePiIO {
   func readValue() throws -> UInt16
+  func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID
 }
 
 public struct GrovePiBusFactory {
