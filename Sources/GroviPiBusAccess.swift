@@ -8,19 +8,21 @@
 
 import Foundation
 
-struct SensorScan<DT> {
+final class SensorScan<DT> {
+  private(set) weak var source: GrovePiIO?
   let readInput: () throws -> (DT)
   let ifChanged: (DT, DT) -> Bool
   let reportChange: (DT) -> ()
   private var lastValue: DT? = nil
 
-  init(readInput: @escaping () throws -> (DT), ifChanged: @escaping (DT, DT) -> Bool, reportChange: @escaping (DT) -> ()) {
+  init(source: GrovePiIO, readInput: @escaping () throws -> (DT), ifChanged: @escaping (DT, DT) -> Bool, reportChange: @escaping (DT) -> ()) {
+    self.source = source
     self.readInput = readInput
     self.ifChanged = ifChanged
     self.reportChange = reportChange
   }
 
-  mutating func checkIfDifferentNewValue(_ newValue: DT) -> Bool {
+  func checkIfDifferentNewValue(_ newValue: DT) -> Bool {
     let oldValue = lastValue
     lastValue = newValue
     return oldValue == nil || ifChanged(newValue, oldValue!)
@@ -77,7 +79,7 @@ final class GrovePiBusAccess {
     checkScansStatusBeforeAdd()
     let reportID = SensorScanChangeReportID(source: port, slot: nextSlot, type: .twoFloatValues)
     nextSlot += 1
-    twoFloatsSensorScansMap[reportID.id] = SensorScan(readInput: readInput, ifChanged: ifChanged, reportChange: reportChange)
+    twoFloatsSensorScansMap[reportID.id] = SensorScan(source: port, readInput: readInput, ifChanged: ifChanged, reportChange: reportChange)
     return reportID
   }
   
@@ -89,7 +91,7 @@ final class GrovePiBusAccess {
     checkScansStatusBeforeAdd()
     let reportID = SensorScanChangeReportID(source: port, slot: nextSlot, type: .analogueValue)
     nextSlot += 1
-    analogueSensorScansMap[reportID.id] = SensorScan(readInput: readInput, ifChanged: ifChanged, reportChange: reportChange)
+    analogueSensorScansMap[reportID.id] = SensorScan(source: port, readInput: readInput, ifChanged: ifChanged, reportChange: reportChange)
     return reportID
   }
 
@@ -101,7 +103,7 @@ final class GrovePiBusAccess {
     checkScansStatusBeforeAdd()
     let reportID = SensorScanChangeReportID(source: port, slot: nextSlot, type: .digitalValue)
     nextSlot += 1
-    digitalSensorScansMap[reportID.id] = SensorScan(readInput: readInput, ifChanged: ifChanged, reportChange: reportChange)
+    digitalSensorScansMap[reportID.id] = SensorScan(source: port, readInput: readInput, ifChanged: ifChanged, reportChange: reportChange)
     return reportID
   }
 
@@ -128,6 +130,27 @@ final class GrovePiBusAccess {
     case .digitalValue:
       _ = digitalSensorScansMap.removeValue(forKey: changeReportID.id)
       break
+    }
+    checkScansStatusAfterRemove()
+  }
+
+  func removeAllSensorScan(from port: GrovePiIO) {
+    criticalSectionLock.lock()
+    defer { criticalSectionLock.unlock() }
+    if !twoFloatsSensorScansMap.isEmpty {
+      twoFloatsSensorScansMap
+        .filter({ (k, v) in v.source != nil && v.source! == port })
+        .forEach({(k, _) in twoFloatsSensorScansMap.removeValue(forKey: k)})
+    }
+    if !analogueSensorScansMap.isEmpty {
+      analogueSensorScansMap
+        .filter({ (k, v) in v.source != nil && v.source! == port })
+        .forEach({(k, _) in analogueSensorScansMap.removeValue(forKey: k)})
+    }
+    if !digitalSensorScansMap.isEmpty {
+      digitalSensorScansMap
+        .filter({ (k, v) in v.source != nil && v.source! == port })
+        .forEach({(k, _) in digitalSensorScansMap.removeValue(forKey: k)})
     }
     checkScansStatusAfterRemove()
   }
@@ -253,8 +276,9 @@ final class GrovePiBusAccess {
   }
 
   private func doScan<DT>(_ sensorScan: SensorScan<DT>) throws -> SensorScan<DT>? {
+    guard sensorScan.source != nil else { return nil }
     let newValue: DT = try sensorScan.readInput()
-    var newSensorScan = sensorScan
+    let newSensorScan = sensorScan
     if newSensorScan.checkIfDifferentNewValue(newValue) {
       busAccessOperations.addOtherOperation {
         newSensorScan.reportChange(newValue)

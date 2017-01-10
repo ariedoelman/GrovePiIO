@@ -86,6 +86,7 @@ public protocol GrovePiIO: class {
   var bus: GrovePiBus { get }
   var port: GrovePiPort { get }
   func cancelChangeReport(withID: ChangeReportID)
+  func cancelAllChangeReports()
 }
 
 public protocol TemperatureAndHumiditySensor: GrovePiIO {

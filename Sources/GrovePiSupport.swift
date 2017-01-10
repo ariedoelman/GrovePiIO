@@ -127,6 +127,10 @@ fileprivate class GrovePiArduinoIO: GrovePiIO {
     bus1.access.removeSensorScan(withID: reportID, from: self)
   }
 
+  fileprivate func cancelAllChangeReports() {
+    bus1.access.removeAllSensorScan(from: self)
+  }
+
 }
 
 fileprivate final class ATemperatureAndHumiditySensor: GrovePiArduinoIO, TemperatureAndHumiditySensor {
