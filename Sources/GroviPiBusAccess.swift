@@ -392,27 +392,25 @@ fileprivate final class ScanSchedulerOperation: Operation {
 
 struct Mutex {
   private var acquires: Int
-  private let criticalSection: NSLock
   private let condition: NSCondition
   init(initialAcquires: Int = 0) {
     acquires = initialAcquires
-    criticalSection = NSLock()
     condition = NSCondition()
   }
   mutating func acquire() {
-    criticalSection.lock()
+    condition.lock()
     while acquires > 0 {
       condition.wait()
     }
     acquires += 1
-    criticalSection.unlock()
+    condition.unlock()
   }
 
   mutating func release() {
-    criticalSection.lock()
+    condition.lock()
     acquires -= 1
     condition.signal()
-    criticalSection.unlock()
+    condition.unlock()
   }
 }
 
