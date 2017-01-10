@@ -46,6 +46,10 @@ final class SensorScanChangeReportID: ChangeReportID {
     return SensorOutputType(rawValue: UInt8(truncatingBitPattern: reportId.id))
   }
 
+  func cancel() {
+    source?.cancelChangeReport(withID: self)
+  }
+
 }
 
 final class GrovePiBusAccess {

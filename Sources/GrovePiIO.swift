@@ -79,6 +79,7 @@ public protocol GrovePiBus: class {
 public protocol ChangeReportID: class {
   weak var source: GrovePiIO? { get }
   var id: Int { get }
+  func cancel()
 }
 
 public protocol GrovePiIO: class {
