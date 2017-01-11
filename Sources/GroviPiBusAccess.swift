@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 
 final class SensorScan<DT> {
   private(set) weak var source: GrovePiIO?
