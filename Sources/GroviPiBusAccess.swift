@@ -280,7 +280,7 @@ final class GrovePiBusAccess {
     let newValue: DT = try sensorScan.readInput()
     let newSensorScan = sensorScan
     if newSensorScan.checkIfDifferentNewValue(newValue) {
-      busAccessOperations.addOtherOperation {
+      busAccessOperations.dispatchOtherWork {
         newSensorScan.reportChange(newValue)
       }
       return newSensorScan
@@ -296,42 +296,49 @@ enum ReadyState: Int {
 }
 
 fileprivate final class BusAccessOperations {
-  private let serialQueue: OperationQueue
-  private let otherOperationQueue: OperationQueue
+  let pollTimeoutInMicroSeconds: useconds_t = 50_000
+  private let serialQueue: DispatchQueue
+  private let otherDispatchQueue: DispatchQueue
   private let scheduleLock: NSConditionLock
-  private var scanSchedulerOperation: ScanSchedulerOperation?
+  private var scanSchedulerWorkItem: DispatchWorkItem?
 
   init() {
-    serialQueue = OperationQueue()
-    serialQueue.qualityOfService = .utility
-    serialQueue.maxConcurrentOperationCount = 1
-    otherOperationQueue = OperationQueue()
-    otherOperationQueue.qualityOfService = .default
+    serialQueue = DispatchQueue(label: "GrovePiBusAccess", qos: .userInitiated)
+    otherDispatchQueue = DispatchQueue(label: "GrovePi Worker", qos: .default, attributes: .concurrent)
     scheduleLock = NSConditionLock(condition: .waiting)
   }
 
   func start(doScansTask: @escaping () -> ()) {
-    scanSchedulerOperation = ScanSchedulerOperation(readyLock: scheduleLock, serialQueue: serialQueue, doScansTask: doScansTask)
-    otherOperationQueue.addOperation(scanSchedulerOperation!)
+    scanSchedulerWorkItem = DispatchWorkItem(qos: .userInitiated, flags: .assignCurrentContext) {
+      guard let myWorkItem = self.scanSchedulerWorkItem else { return }
+      while !myWorkItem.isCancelled {
+        self.scheduleLock.lock(whenCondition: .waiting)
+        usleep(self.pollTimeoutInMicroSeconds)
+        self.serialQueue.async {
+          self.scheduleLock.lock(whenCondition: .busy)
+          doScansTask()
+          self.scheduleLock.unlock(withCondition: .waiting)
+        }
+        self.scheduleLock.unlock(withCondition: .busy)
+      }
+    }
+    otherDispatchQueue.async(execute: scanSchedulerWorkItem!)
   }
 
-  func addOtherOperation(_ block: @escaping () -> ()) {
-    otherOperationQueue.addOperation(block)
+  func dispatchOtherWork(_ block: @escaping () -> ()) {
+    otherDispatchQueue.async(execute: block)
   }
 
   func readValue<DT>(readInput: @escaping () throws -> (DT)) throws -> DT {
     var result: DT? = nil
     var errorResult: Error? = nil
-    var ioMutex = Mutex(initialAcquires: 1)
-    serialQueue.addOperation {
+    serialQueue.sync {
       do {
         result = try readInput()
       } catch {
         errorResult = error
       }
-      ioMutex.release()
     }
-    ioMutex.acquire()
     if let error = errorResult {
       throw error
     }
@@ -340,78 +347,25 @@ fileprivate final class BusAccessOperations {
 
   func writeValue<DT>(_ value: DT, writeOutput: @escaping (DT) throws -> ()) throws {
     var errorResult: Error? = nil
-    var ioMutex = Mutex(initialAcquires: 1)
-    serialQueue.addOperation {
+    serialQueue.sync {
       do {
         try writeOutput(value)
       } catch {
         errorResult = error
       }
-      ioMutex.release()
     }
-    ioMutex.acquire()
     if let error = errorResult {
       throw error
     }
   }
 
   func stopScansTask() {
-    if let op = scanSchedulerOperation {
-      scanSchedulerOperation = nil
+    if let op = scanSchedulerWorkItem {
+      scanSchedulerWorkItem = nil
       op.cancel()
     }
   }
 
-}
-
-fileprivate final class ScanSchedulerOperation: Operation {
-  let pollTimeoutInMicroSeconds: useconds_t = 50_000
-  private unowned var readyLock: NSConditionLock
-  private unowned var serialQueue: OperationQueue
-  private let doScansTask: () -> ()
-
-  init(readyLock: NSConditionLock, serialQueue: OperationQueue, doScansTask: @escaping () -> ()) {
-    self.readyLock = readyLock
-    self.serialQueue = serialQueue
-    self.doScansTask = doScansTask
-  }
-
-  override func main() {
-    while !isCancelled {
-      readyLock.lock(whenCondition: .waiting)
-      usleep(pollTimeoutInMicroSeconds)
-      serialQueue.addOperation {
-        self.readyLock.lock(whenCondition: .busy)
-        self.doScansTask()
-        self.readyLock.unlock(withCondition: .waiting)
-      }
-      readyLock.unlock(withCondition: .busy)
-    }
-  }
-}
-
-struct Mutex {
-  private var acquires: Int
-  private let condition: NSCondition
-  init(initialAcquires: Int = 0) {
-    acquires = initialAcquires
-    condition = NSCondition()
-  }
-  mutating func acquire() {
-    condition.lock()
-    while acquires > 0 {
-      condition.wait()
-    }
-    acquires += 1
-    condition.unlock()
-  }
-
-  mutating func release() {
-    condition.lock()
-    acquires -= 1
-    condition.signal()
-    condition.unlock()
-  }
 }
 
 fileprivate extension NSConditionLock {
