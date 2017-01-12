@@ -61,10 +61,10 @@ final class GrovePiBusAccess {
   private var analogueSensorScansMap: [Int:SensorScan<(UInt16)>] = [:]
   private var digitalSensorScansMap: [Int:SensorScan<(DigitalValue)>] = [:]
   private let busAccessOperations: BusAccessOperations
-  private let criticalSectionLock: NSRecursiveLock
+  private let criticalSectionLock: Lock
 
   init() {
-    criticalSectionLock = NSRecursiveLock()
+    criticalSectionLock = Lock()
     busAccessOperations = BusAccessOperations()
   }
 
@@ -108,9 +108,7 @@ final class GrovePiBusAccess {
     return reportID
   }
 
-  func countScans() -> Int {
-    criticalSectionLock.lock()
-    defer { criticalSectionLock.unlock() }
+  private func countScans() -> Int {
     return twoFloatsSensorScansMap.count + analogueSensorScansMap.count + digitalSensorScansMap.count
   }
 
@@ -300,27 +298,21 @@ fileprivate final class BusAccessOperations {
   let pollTimeoutInMicroSeconds: useconds_t = 50_000
   private let serialQueue: DispatchQueue
   private let otherDispatchQueue: DispatchQueue
-  private let scheduleLock: NSConditionLock
   private var scanSchedulerWorkItem: DispatchWorkItem?
 
   init() {
     serialQueue = DispatchQueue(label: "GrovePiBusAccess", qos: .userInitiated)
     otherDispatchQueue = DispatchQueue(label: "GrovePi Worker", qos: .default, attributes: .concurrent)
-    scheduleLock = NSConditionLock(condition: .waiting)
   }
 
   func start(doScansTask: @escaping () -> ()) {
     scanSchedulerWorkItem = DispatchWorkItem(qos: .userInitiated, flags: .assignCurrentContext) {
       guard let myWorkItem = self.scanSchedulerWorkItem else { return }
       while !myWorkItem.isCancelled {
-        self.scheduleLock.lock(whenCondition: .waiting)
         usleep(self.pollTimeoutInMicroSeconds)
         self.serialQueue.async {
-          self.scheduleLock.lock(whenCondition: .busy)
           doScansTask()
-          self.scheduleLock.unlock(withCondition: .waiting)
         }
-        self.scheduleLock.unlock(withCondition: .busy)
       }
     }
     otherDispatchQueue.async(execute: scanSchedulerWorkItem!)
@@ -367,18 +359,6 @@ fileprivate final class BusAccessOperations {
     }
   }
 
-}
-
-fileprivate extension NSConditionLock {
-  convenience init(condition readyState: ReadyState) {
-    self.init(condition: readyState.rawValue)
-  }
-  func lock(whenCondition readyState: ReadyState) {
-    lock(whenCondition: readyState.rawValue)
-  }
-  func unlock(withCondition readyState: ReadyState) {
-    unlock(withCondition: readyState.rawValue)
-  }
 }
 
 func ==(lhs: GrovePiIO, rhs: GrovePiIO) -> Bool {
