@@ -154,26 +154,6 @@ final class GrovePiBusAccess {
     checkScansStatusAfterRemove()
   }
 
-  func readTwoFloats(readInput: @escaping () throws -> ((Float,Float))) throws -> (Float, Float) {
-    return try busAccessOperations.readValue(readInput: readInput)
-  }
-
-  func readAnalogueValue(readInput: @escaping () throws -> (UInt16)) throws -> UInt16 {
-    return try busAccessOperations.readValue(readInput: readInput)
-  }
-
-  func readDigitalValue(readInput: @escaping () throws -> (DigitalValue)) throws -> DigitalValue {
-    return try busAccessOperations.readValue(readInput: readInput)
-  }
-
-  func writeAnalogueValue(_ value: UInt8, writeOutput: @escaping (UInt8) throws -> ()) throws {
-    try busAccessOperations.writeValue(value, writeOutput: writeOutput)
-  }
-
-  func writeDigitalValue(_ value: DigitalValue, writeOutput: @escaping (DigitalValue) throws -> ()) throws {
-    try busAccessOperations.writeValue(value, writeOutput: writeOutput)
-  }
-
   private func checkScansStatusBeforeAdd() {
     if countScans() == 0 {
       busAccessOperations.start(doScansTask: doScans)
@@ -296,12 +276,10 @@ enum ReadyState: Int {
 
 fileprivate final class BusAccessOperations {
   let pollTimeoutInMicroSeconds: useconds_t = 50_000
-  private let serialQueue: DispatchQueue
   private let otherDispatchQueue: DispatchQueue
   private var scanSchedulerWorkItem: DispatchWorkItem?
 
   init() {
-    serialQueue = DispatchQueue(label: "GrovePiBusAccess", qos: .userInitiated)
     otherDispatchQueue = DispatchQueue(label: "GrovePi Worker", qos: .default, attributes: .concurrent)
   }
 
@@ -310,9 +288,7 @@ fileprivate final class BusAccessOperations {
       guard let myWorkItem = self.scanSchedulerWorkItem else { return }
       while !myWorkItem.isCancelled {
         usleep(self.pollTimeoutInMicroSeconds)
-        self.serialQueue.async {
-          doScansTask()
-        }
+        doScansTask()
       }
     }
     otherDispatchQueue.async(execute: scanSchedulerWorkItem!)
@@ -320,36 +296,6 @@ fileprivate final class BusAccessOperations {
 
   func dispatchOtherWork(_ block: @escaping () -> ()) {
     otherDispatchQueue.async(execute: block)
-  }
-
-  func readValue<DT>(readInput: @escaping () throws -> (DT)) throws -> DT {
-    var result: DT? = nil
-    var errorResult: Error? = nil
-    serialQueue.sync {
-      do {
-        result = try readInput()
-      } catch {
-        errorResult = error
-      }
-    }
-    if let error = errorResult {
-      throw error
-    }
-    return result!
-  }
-
-  func writeValue<DT>(_ value: DT, writeOutput: @escaping (DT) throws -> ()) throws {
-    var errorResult: Error? = nil
-    serialQueue.sync {
-      do {
-        try writeOutput(value)
-      } catch {
-        errorResult = error
-      }
-    }
-    if let error = errorResult {
-      throw error
-    }
   }
 
   func stopScansTask() {

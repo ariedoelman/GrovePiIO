@@ -13,7 +13,7 @@
 #endif
 import Foundation
 
-public class Lock {
+internal class Lock {
 
   let mutex = UnsafeMutablePointer<pthread_mutex_t>.allocate(capacity: 1)
 

@@ -43,6 +43,7 @@ final class GrovePiArduinoBus1: GrovePiBus {
   fileprivate var fd: Int32 = -1
   fileprivate var r_buf = [UInt8](repeating: 0, count: 32)
   fileprivate var w_buf = [UInt8](repeating: 0, count: 4)
+  fileprivate let criticalSection: Lock = Lock()
 
   static func getBus() throws -> GrovePiBus {
     if bus == nil {
@@ -96,31 +97,31 @@ fileprivate class GrovePiArduinoIO: GrovePiIO {
   fileprivate init(bus: GrovePiArduinoBus1, port: GrovePiPort, ioMode: IOMode) throws {
     self.bus1 = bus
     self.port = port
-    try indirectSetIOMode(to: ioMode)
+    try directSetIOMode(to: ioMode)
   }
 
   fileprivate func readAnalogueValue() throws -> UInt16 {
-    return try indirectReadAnalogueValue()
+    return try directReadAnalogueValue()
   }
 
   fileprivate func readUltrasonicRange() throws -> UInt16 {
-    return try indirectReadUltraSonicRange()
+    return try directReadUltraSonicRange()
   }
 
   fileprivate func readDigitalValue() throws -> DigitalValue {
-    return try indirectReadDigitalValue()
+    return try directReadDigitalValue()
   }
 
   fileprivate func readTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
-    return try indirectReadTemperatureAndHumidity(moduleType: moduleType)
+    return try directReadTemperatureAndHumidity(moduleType: moduleType)
   }
 
   fileprivate func setDigitalValue(_ digitalValue: DigitalValue) throws {
-    try indirectWriteDigitalValue(digitalValue)
+    try directWriteDigitalValue(digitalValue)
   }
 
   fileprivate func setAnalogueValue(_ value: UInt8) throws {
-    try indirectWriteAnalogueValue(value)
+    try directWriteAnalogueValue(value)
   }
 
   func cancelChangeReport(withID reportID: ChangeReportID) {
@@ -264,41 +265,41 @@ extension GrovePiArduinoIO {
 
   // MARK: - private implementation details
 
-  private func directSetIOMode(to ioMode: IOMode) throws {
-    try bus1.writeBlock(Command.pinMode.rawValue, port.id, ioMode.rawValue)
-  }
-
-  fileprivate func indirectSetIOMode(to ioMode: IOMode) throws {
-    try bus1.access.writeAnalogueValue(ioMode.rawValue) { _ in try self.directSetIOMode(to: ioMode) }
+  fileprivate func directSetIOMode(to ioMode: IOMode) throws {
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.pinMode.rawValue, port.id, ioMode.rawValue)
+    }
   }
 
   fileprivate func directReadAnalogueValue() throws -> UInt16 {
-    try bus1.writeBlock(Command.analogRead.rawValue, port.id)
-    usleep(25_000) // without delay always returns zeroes the first time
-    _ = try bus1.readByte()
-    let bytes = try bus1.readBlock()
+    var bytes: [UInt8] = []
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.analogRead.rawValue, port.id)
+      usleep(25_000) // without delay always returns zeroes the first time
+      _ = try bus1.readByte()
+      bytes = try bus1.readBlock()
+    }
     return (UInt16(bytes[1]) << 8) | UInt16(bytes[2])
   }
 
-  fileprivate func indirectReadAnalogueValue() throws -> UInt16 {
-    return try bus1.access.readAnalogueValue(readInput: directReadAnalogueValue)
-  }
-
   fileprivate func directReadDigitalValue() throws -> DigitalValue {
-    try bus1.writeBlock(Command.digitalRead.rawValue, port.id)
-    let byte = try bus1.readByte()
+    var byte: UInt8 = 0
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.digitalRead.rawValue, port.id)
+      usleep(25_000) // without delay always returns zeroes the first time
+      byte = try bus1.readByte()
+    }
     return byte == 0 ? .low : .high
   }
 
-  fileprivate func indirectReadDigitalValue() throws -> DigitalValue {
-    return try bus1.access.readDigitalValue(readInput: directReadDigitalValue)
-  }
-
   fileprivate func directReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
-    try bus1.writeBlock(Command.temperatureAndHumidityRead.rawValue, port.id, moduleType.rawValue)
-    usleep(25_000) // without delay always returns zeroes the first time
-    _ = try bus1.readByte()
-    let bytes = try bus1.readBlock()
+    var bytes: [UInt8] = []
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.temperatureAndHumidityRead.rawValue, port.id, moduleType.rawValue)
+      usleep(25_000) // without delay always returns zeroes the first time
+      _ = try bus1.readByte()
+      bytes = try bus1.readBlock()
+    }
     var temperature = Float(ieee754LittleEndianBytes: bytes, offset: 1)
     if temperature > -100.0 && temperature < 150.0 {
       temperature = (temperature * 10.0).rounded() / 10.0
@@ -314,38 +315,27 @@ extension GrovePiArduinoIO {
     return (temperature, humidity)
   }
 
-  fileprivate func indirectReadTemperatureAndHumidity(moduleType: DHTModuleType) throws -> (temperature: Float, humidity: Float) {
-    return try bus1.access.readTwoFloats {
-      return try self.directReadTemperatureAndHumidity(moduleType: moduleType)
-    }
-  }
-
   fileprivate func directReadUltraSonicRange() throws -> UInt16 {
-    try bus1.writeBlock(Command.ultrasonicRangeRead.rawValue, port.id)
-    usleep(51_000) // firmware has a time of 50ms so wait for more than that
-    _ = try bus1.readByte()
-    let bytes = try bus1.readBlock()
+    var bytes: [UInt8] = []
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.ultrasonicRangeRead.rawValue, port.id)
+      usleep(51_000) // firmware has a time of 50ms so wait for more than that
+      _ = try bus1.readByte()
+      bytes = try bus1.readBlock()
+    }
     return (UInt16(bytes[1]) << 8) | UInt16(bytes[2])
   }
 
-  fileprivate func indirectReadUltraSonicRange() throws -> UInt16 {
-    return try bus1.access.readAnalogueValue(readInput: directReadUltraSonicRange)
+  fileprivate func directWriteAnalogueValue(_ value: UInt8) throws {
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.analogWrite.rawValue, port.id, value)
+    }
   }
 
-  private func directWriteAnalogueValue(_ value: UInt8) throws {
-    try bus1.writeBlock(Command.analogWrite.rawValue, port.id, value)
-  }
-
-  private func directWriteDigitalValue(_ value: DigitalValue) throws {
-    try bus1.writeBlock(Command.digitalWrite.rawValue, port.id, value.rawValue)
-  }
-
-  fileprivate func indirectWriteAnalogueValue(_ value: UInt8) throws {
-    try bus1.access.writeAnalogueValue(value, writeOutput: directWriteAnalogueValue)
-  }
-
-  fileprivate func indirectWriteDigitalValue(_ value: DigitalValue) throws {
-    try bus1.access.writeDigitalValue(value, writeOutput: directWriteDigitalValue)
+  fileprivate func directWriteDigitalValue(_ value: DigitalValue) throws {
+    try bus1.criticalSection.locked {
+      try bus1.writeBlock(Command.digitalWrite.rawValue, port.id, value.rawValue)
+    }
   }
 }
 
