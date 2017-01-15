@@ -22,11 +22,11 @@ public extension GrovePiBus {
 
 private final class GrovePiArduinoBus: GrovePiBus {
   private static var bus: GrovePiArduinoBus? = nil
-  fileprivate let busNumber: UInt8 = 1
-  fileprivate let criticalSection: Lock = Lock()
-  fileprivate var fd: Int32 = -1
-  fileprivate var r_buf = [UInt8](repeating: 0, count: 32)
-  fileprivate var w_buf = [UInt8](repeating: 0, count: 4)
+  let busNumber: UInt8 = 1
+  let criticalSection: Lock = Lock()
+  var fd: Int32 = -1
+  var r_buf = [UInt8](repeating: 0, count: 32)
+  var w_buf = [UInt8](repeating: 0, count: 4)
 
   private var portMap: [PortLabelWrapper : GrovePiIOUnit] = [:]
 
@@ -51,7 +51,7 @@ private final class GrovePiArduinoBus: GrovePiBus {
       throw GrovePiError.UnsupportedPortTypeForUnit(unitDescription: inputUnit.description, portTypeDescription: portLabel.type.description)
     }
     portMap[wrapper] = inputUnit
-    return AnyGrovePiInputSource(ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputProtocol: inputProtocol))
+    return AnyGrovePiInputSource(try ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputProtocol: inputProtocol))
   }
   
   deinit {
@@ -79,13 +79,17 @@ private struct ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiI
   let inputProtocol: IP
   let inputChangeDelegates: MulticastDelegate<InputValueChangeDelegate, InputValue>
   let delayUSeconds: UInt32
+  let extraParameters: [UInt8]
 
-  public init(arduinoBus: GrovePiArduinoBus, portLabel: GrovePiPortLabel, inputProtocol: IP) {
+  public init(arduinoBus: GrovePiArduinoBus, portLabel: GrovePiPortLabel, inputProtocol: IP) throws {
     self.arduinoBus = arduinoBus
     self.portLabel = portLabel
     self.inputProtocol = inputProtocol
     inputChangeDelegates = MulticastDelegate()
     delayUSeconds = UInt32(inputProtocol.delayReadAfterRequestTimeInterval * 1_000_000)
+    let extraBytes = inputProtocol.readCommandAdditionalParameters
+    extraParameters = [extraBytes.count > 0 ? extraBytes[0] : 0, extraBytes.count > 1 ? extraBytes[1] : 0]
+    try arduinoBus.setIOMode(.input, on: portLabel)
   }
 
   func readValue() throws -> InputValue {
@@ -94,10 +98,8 @@ private struct ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiI
   }
 
   private func readBytes() throws -> [UInt8] {
-    let extraBytes = inputProtocol.readCommandAdditionalParameters
     return try arduinoBus.readCommand(command: inputProtocol.readCommand, portID: portLabel.id,
-                                      parameter1: extraBytes.count > 0 ? extraBytes[0] : 0,
-                                      parameter2: extraBytes.count > 1 ? extraBytes[1] : 0,
+                                      parameter1: extraParameters[0], parameter2: extraParameters[1],
                                       delay: delayUSeconds, returnLength: inputProtocol.responseValueLength)
   }
 
@@ -121,8 +123,15 @@ extension GrovePiArduinoBus {
     if returnLength == 1 {
       return bytes
     }
-    return [UInt8](bytes.dropFirst())
+    return [UInt8](bytes[1...Int(returnLength)])
   }
+
+  func setIOMode(_ ioMode: IOMode, on portLabel: GrovePiPortLabel) throws {
+    try criticalSection.locked {
+      try writeBlock(5, portLabel.id, ioMode.rawValue)
+    }
+  }
+
 }
 
 // MARK: - the lowest level of communication with the GrovePi
