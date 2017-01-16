@@ -40,7 +40,7 @@ public struct TemperatureAndHumiditySensor: GrovePiInputUnit {
 // MARK: - Public extensions
 
 public extension GrovePiBus {
-  func connectTemperatureAndHumiditySensor(to portLabel: GrovePiPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 1.0)
+  func connectTemperatureAndHumiditySensor(to portLabel: GrovePiAnaloguePortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 1.0)
   throws -> AnyGrovePiInputSource<TemperatureAndHumidity> {
     let sensor = TemperatureAndHumiditySensor(moduleType: moduleType, sampleTimeInterval: sampleTimeInterval)
     let `protocol` = TemperatureAndHumidityProtocol(sensor: sensor)

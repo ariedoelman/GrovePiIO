@@ -18,7 +18,17 @@ public extension GrovePiBus {
   public static func connectBus() throws -> GrovePiBus {
     return try GrovePiArduinoBus.connectBus()
   }
+
+  public static func disconnectBus() throws {
+    try GrovePiArduinoBus.disconnectBus()
+  }
 }
+
+public extension GrovePiInputProtocol {
+  public var delayReadAfterCommandTimeInterval: TimeInterval { return 0.025 } // default delay of 25 ms
+}
+
+// MARK: - Private implementation
 
 private final class GrovePiArduinoBus: GrovePiBus {
   private static var bus: GrovePiArduinoBus? = nil
@@ -37,7 +47,13 @@ private final class GrovePiArduinoBus: GrovePiBus {
     return bus!
   }
 
-    init() throws {
+  static func disconnectBus() throws {
+    guard bus != nil else { return }
+    defer { bus = nil }
+    try bus!.closeIO()
+  }
+
+  init() throws {
 //      self.access = GrovePiBusAccess()
       try openIO()
     }
@@ -56,7 +72,7 @@ private final class GrovePiArduinoBus: GrovePiBus {
   
   deinit {
     #if os(Linux)
-      close(fd) // ignore any error
+      try? closeIO() // ignore any error
     #endif
   }
 }
@@ -73,11 +89,11 @@ private struct PortLabelWrapper: Equatable, Hashable {
   }
 }
 
-private struct ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiInputValueType>: GrovePiInputSource where IP.InputValue == InputValue {
-  let arduinoBus: GrovePiArduinoBus
+private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiInputValueType>: GrovePiInputSource where IP.InputValue == InputValue {
+  weak var arduinoBus: GrovePiArduinoBus?
   let portLabel: GrovePiPortLabel
   let inputProtocol: IP
-  let inputChangeDelegates: MulticastDelegate<InputValueChangeDelegate, InputValue>
+  let inputChangedDelegates: MulticastDelegate<InputValueChangedDelegate, InputValue>
   let delayUSeconds: UInt32
   let extraParameters: [UInt8]
 
@@ -85,8 +101,8 @@ private struct ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiI
     self.arduinoBus = arduinoBus
     self.portLabel = portLabel
     self.inputProtocol = inputProtocol
-    inputChangeDelegates = MulticastDelegate()
-    delayUSeconds = UInt32(inputProtocol.delayReadAfterRequestTimeInterval * 1_000_000)
+    inputChangedDelegates = MulticastDelegate()
+    delayUSeconds = inputProtocol.delayReadAfterCommandTimeInterval.uSeconds
     let extraBytes = inputProtocol.readCommandAdditionalParameters
     extraParameters = [extraBytes.count > 0 ? extraBytes[0] : 0, extraBytes.count > 1 ? extraBytes[1] : 0]
     try arduinoBus.setIOMode(.input, on: portLabel)
@@ -97,7 +113,18 @@ private struct ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiI
     return inputProtocol.convert(valueBytes: valueBytes)
   }
 
+  func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    inputChangedDelegates.addDelegate(delegate)
+  }
+
+  func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    inputChangedDelegates.removeDelegate(delegate)
+  }
+
   private func readBytes() throws -> [UInt8] {
+    guard let arduinoBus = self.arduinoBus else {
+      throw GrovePiError.DisconnectedBus
+    }
     return try arduinoBus.readCommand(command: inputProtocol.readCommand, portID: portLabel.id,
                                       parameter1: extraParameters[0], parameter2: extraParameters[1],
                                       delay: delayUSeconds, returnLength: inputProtocol.responseValueLength)
@@ -146,6 +173,17 @@ extension GrovePiArduinoBus {
       }
       if ioctl(fd, UInt(I2C_SLAVE), 0x04/*Arduino*/) != 0 {
         throw GrovePiError.IOError(errno)
+      }
+    #endif
+  }
+
+  func closeIO() throws {
+    guard fd >= 0 else { return }
+    #if os(Linux)
+      let result = close(fd)
+      fd = -1
+      if result < 0 {
+        throw GrovePiError.CloseError(errno)
       }
     #endif
   }

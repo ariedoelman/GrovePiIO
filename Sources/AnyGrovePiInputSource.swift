@@ -8,10 +8,8 @@
 
 import Foundation
 
-public struct AnyGrovePiInputSource<InputValue: GrovePiInputValueType>: GrovePiInputSource {
+public final class AnyGrovePiInputSource<InputValue: GrovePiInputValueType>: GrovePiInputSource {
   private var box: _AnyGrovePiInputSourceBoxBase<InputValue>
-
-  public var inputChangeDelegates: MulticastDelegate<InputValueChangeDelegate, InputValue> { return box.inputChangeDelegates }
 
   public init<IS: GrovePiInputSource>(_ base: IS) where IS.InputValue == InputValue {
     self.box = _AnyGrovePiInputSourceBox(base)
@@ -20,11 +18,18 @@ public struct AnyGrovePiInputSource<InputValue: GrovePiInputValueType>: GrovePiI
   public func readValue() throws -> InputValue {
     return try box.readValue()
   }
+
+  public func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    return box.addValueChangedDelegate(delegate)
+  }
+
+  public func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    return box.removeValueChangedDelegate(delegate)
+  }
 }
 
 private final class _AnyGrovePiInputSourceBox<IS: GrovePiInputSource>: _AnyGrovePiInputSourceBoxBase<IS.InputValue> {
   var base: IS
-  override var inputChangeDelegates: MulticastDelegate<InputValueChangeDelegate, IS.InputValue> { return base.inputChangeDelegates }
 
   init(_ base: IS) {
     self.base = base
@@ -34,15 +39,21 @@ private final class _AnyGrovePiInputSourceBox<IS: GrovePiInputSource>: _AnyGrove
   override func readValue() throws -> IS.InputValue {
     return try base.readValue()
   }
+
+  override func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    return base.addValueChangedDelegate(delegate)
+  }
+
+  override func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    return base.removeValueChangedDelegate(delegate)
+  }
 }
 
 private class _AnyGrovePiInputSourceBoxBase<InputValue: GrovePiInputValueType>: GrovePiInputSource {
-  var inputChangeDelegates: MulticastDelegate<InputValueChangeDelegate, InputValue> { fatalError() }
+  var inputChangedDelegates: MulticastDelegate<InputValueChangedDelegate, InputValue> { fatalError() }
 
-  init() {
-  }
+  func readValue() throws -> InputValue { fatalError() }
+  func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) { fatalError() }
+  func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) { fatalError() }
 
-  func readValue() throws -> InputValue {
-    fatalError()
-  }
 }

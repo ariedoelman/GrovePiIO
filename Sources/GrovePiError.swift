@@ -11,7 +11,9 @@ import Foundation
 public enum GrovePiError: Error {
   case OpenError(osError: Int32)
   case IOError(osError: Int32)
+  case CloseError(osError: Int32)
   case AlreadyOccupiedPort(portDescription: String)
   case UnsupportedPortTypeForUnit(unitDescription: String, portTypeDescription: String)
+  case DisconnectedBus
 }
 

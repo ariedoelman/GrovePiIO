@@ -8,8 +8,10 @@
 
 import Foundation
 
-public final class MulticastDelegate <T, DT> {
+internal final class MulticastDelegate <T, DT> {
   private var weakDelegates = [WeakWrapper]()
+
+  public var count: Int { return weakDelegates.flatMap { $0.value }.count }
 
   public func addDelegate(_ delegate: T) {
     weakDelegates.append(WeakWrapper(value: delegate as AnyObject))

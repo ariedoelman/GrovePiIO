@@ -42,7 +42,7 @@ public protocol GrovePiInputProtocol {
 
   var readCommand: UInt8 { get }
   var readCommandAdditionalParameters: [UInt8] { get }
-  var delayReadAfterRequestTimeInterval: TimeInterval { get }
+  var delayReadAfterCommandTimeInterval: TimeInterval { get }
   var responseValueLength: UInt8 { get }
 
   func convert(valueBytes: [UInt8]) -> InputValue
@@ -53,25 +53,16 @@ public protocol GrovePiOutputUnit: GrovePiIOUnit {
 
 }
 
-public protocol InputValueChangeDelegate: class {
+public protocol InputValueChangedDelegate: class {
   func newInputValue<IDT: GrovePiInputValueType>(_ inputData: IDT)
 }
 
-//public protocol GrovePiInputConnection  {
-//  associatedtype IU: GrovePiInputUnit
-//  associatedtype IP: GrovePiInputProtocol
-//
-//  var portLabel: GrovePiPortLabel { get }
-//  var inputUnit: IU { get }
-//  var inputProtocol: IP { get }
-//}
-
-public protocol GrovePiInputSource {
+public protocol GrovePiInputSource: class {
   associatedtype InputValue: GrovePiInputValueType
 
-  var inputChangeDelegates: MulticastDelegate<InputValueChangeDelegate, InputValue> { get }
-
   func readValue() throws -> InputValue
+  func addValueChangedDelegate(_ delegate: InputValueChangedDelegate)
+  func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate)
 }
 
 public protocol GrovePiOutputProtocol {
@@ -82,15 +73,6 @@ public protocol GrovePiOutputProtocol {
   func convert(outputValue: OutputValue) -> [UInt8]
 }
 
-//public protocol GrovePiOutputConnection {
-//  associatedtype OU: GrovePiOutputUnit
-//  associatedtype OP: GrovePiOutputProtocol
-//
-//  var portLabel: GrovePiPortLabel { get }
-//  var outputUnit: OU { get }
-//  var outputProtocol: OP { get }
-//}
-
 public protocol GrovePiOutputDestination {
   associatedtype OutputValue: GrovePiOutputValueType
 
@@ -98,10 +80,6 @@ public protocol GrovePiOutputDestination {
 }
 
 // MARK: - default implementations and default values
-
-public extension GrovePiInputProtocol {
-  public var delayReadAfterRequestTimeInterval: TimeInterval { return 0.025 } // default delay of 25 ms
-}
 
 public extension GrovePiInputUnit {
   public var ioMode: IOMode { return .input }
