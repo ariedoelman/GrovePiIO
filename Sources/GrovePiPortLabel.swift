@@ -81,3 +81,17 @@ public enum GrovePiUARTPortLabel: String, GrovePiPortLabel {
   public var description: String { return rawValue }
 
 }
+
+public struct EquatablePortLabel: Equatable, Hashable {
+  public let portLabel: GrovePiPortLabel
+  public var hashValue: Int { return portLabel.description.hashValue }
+
+  public init(_ portLabel: GrovePiPortLabel) {
+    self.portLabel = portLabel
+  }
+
+  public static func ==(lhs: EquatablePortLabel, rhs: EquatablePortLabel) -> Bool {
+    return lhs.portLabel.type == rhs.portLabel.type && lhs.portLabel.id == rhs.portLabel.id
+  }
+}
+

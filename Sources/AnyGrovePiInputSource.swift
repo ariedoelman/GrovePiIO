@@ -10,6 +10,8 @@ import Foundation
 
 public final class AnyGrovePiInputSource<InputValue: GrovePiInputValueType>: GrovePiInputSource {
   private var box: _AnyGrovePiInputSourceBoxBase<InputValue>
+  public var inputUnit: GrovePiInputUnit { return box.inputUnit }
+  public var portLabel: GrovePiPortLabel { return box.portLabel }
 
   public init<IS: GrovePiInputSource>(_ base: IS) where IS.InputValue == InputValue {
     self.box = _AnyGrovePiInputSourceBox(base)
@@ -30,6 +32,8 @@ public final class AnyGrovePiInputSource<InputValue: GrovePiInputValueType>: Gro
 
 private final class _AnyGrovePiInputSourceBox<IS: GrovePiInputSource>: _AnyGrovePiInputSourceBoxBase<IS.InputValue> {
   var base: IS
+  override var inputUnit: GrovePiInputUnit { return base.inputUnit }
+  override var portLabel: GrovePiPortLabel { return base.portLabel }
 
   init(_ base: IS) {
     self.base = base
@@ -50,7 +54,8 @@ private final class _AnyGrovePiInputSourceBox<IS: GrovePiInputSource>: _AnyGrove
 }
 
 private class _AnyGrovePiInputSourceBoxBase<InputValue: GrovePiInputValueType>: GrovePiInputSource {
-  var inputChangedDelegates: MulticastDelegate<InputValueChangedDelegate, InputValue> { fatalError() }
+  var portLabel: GrovePiPortLabel { fatalError() }
+  var inputUnit: GrovePiInputUnit { fatalError() }
 
   func readValue() throws -> InputValue { fatalError() }
   func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) { fatalError() }

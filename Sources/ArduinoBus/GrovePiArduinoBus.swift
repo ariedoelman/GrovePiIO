@@ -38,7 +38,8 @@ private final class GrovePiArduinoBus: GrovePiBus {
   var r_buf = [UInt8](repeating: 0, count: 32)
   var w_buf = [UInt8](repeating: 0, count: 4)
 
-  private var portMap: [PortLabelWrapper : GrovePiIOUnit] = [:]
+  private var portMap: [EquatablePortLabel : GrovePiIOUnit]
+  var scanner: GrovePiBusScanner
 
   static func connectBus() throws -> GrovePiBus {
     if bus == nil {
@@ -54,12 +55,13 @@ private final class GrovePiArduinoBus: GrovePiBus {
   }
 
   init() throws {
-//      self.access = GrovePiBusAccess()
-      try openIO()
-    }
+    portMap = [:]
+    scanner = GrovePiBusScanner()
+    try openIO()
+  }
 
   func connect<IP : GrovePiInputProtocol>(inputUnit: GrovePiInputUnit, to portLabel: GrovePiPortLabel, using inputProtocol: IP) throws -> AnyGrovePiInputSource<IP.InputValue> {
-    let wrapper = PortLabelWrapper(portLabel)
+    let wrapper = EquatablePortLabel(portLabel)
     guard let _ = portMap[wrapper] else {
       throw GrovePiError.AlreadyOccupiedPort(portDescription: portLabel.description)
     }
@@ -67,7 +69,7 @@ private final class GrovePiArduinoBus: GrovePiBus {
       throw GrovePiError.UnsupportedPortTypeForUnit(unitDescription: inputUnit.description, portTypeDescription: portLabel.type.description)
     }
     portMap[wrapper] = inputUnit
-    return AnyGrovePiInputSource(try ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputProtocol: inputProtocol))
+    return AnyGrovePiInputSource(try ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputUnit: inputUnit, inputProtocol: inputProtocol))
   }
   
   deinit {
@@ -77,29 +79,20 @@ private final class GrovePiArduinoBus: GrovePiBus {
   }
 }
 
-private struct PortLabelWrapper: Equatable, Hashable {
-  let portLabel: GrovePiPortLabel
-  var hashValue: Int { return portLabel.description.hashValue }
-
-  init(_ portLabel: GrovePiPortLabel) {
-    self.portLabel = portLabel
-  }
-  static func ==(lhs: PortLabelWrapper, rhs: PortLabelWrapper) -> Bool {
-    return lhs.portLabel.type == rhs.portLabel.type && lhs.portLabel.id == rhs.portLabel.id
-  }
-}
-
 private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiInputValueType>: GrovePiInputSource where IP.InputValue == InputValue {
-  weak var arduinoBus: GrovePiArduinoBus?
+  fileprivate weak var arduinoBus: GrovePiArduinoBus?
   let portLabel: GrovePiPortLabel
+  let inputUnit: GrovePiInputUnit
   let inputProtocol: IP
   let inputChangedDelegates: MulticastDelegate<InputValueChangedDelegate, InputValue>
   let delayUSeconds: UInt32
   let extraParameters: [UInt8]
+  var lastChangedValue: InputValue?
 
-  public init(arduinoBus: GrovePiArduinoBus, portLabel: GrovePiPortLabel, inputProtocol: IP) throws {
+  fileprivate init(arduinoBus: GrovePiArduinoBus, portLabel: GrovePiPortLabel, inputUnit: GrovePiInputUnit, inputProtocol: IP) throws {
     self.arduinoBus = arduinoBus
     self.portLabel = portLabel
+    self.inputUnit = inputUnit
     self.inputProtocol = inputProtocol
     inputChangedDelegates = MulticastDelegate()
     delayUSeconds = inputProtocol.delayReadAfterCommandTimeInterval.uSeconds
@@ -114,11 +107,32 @@ private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: Gro
   }
 
   func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    guard let arduinoBus = self.arduinoBus else {
+      return
+    }
     inputChangedDelegates.addDelegate(delegate)
+    if inputChangedDelegates.count == 1 {
+      arduinoBus.scanner.addScanItem(portLabel: portLabel, sampleTimeInterval: inputUnit.sampleTimeInterval, evaluation: valueChangedEvaluation)
+    }
   }
 
   func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
+    guard let arduinoBus = self.arduinoBus else {
+      return
+    }
     inputChangedDelegates.removeDelegate(delegate)
+    if inputChangedDelegates.count == 0 {
+      arduinoBus.scanner.removeScanItem(portLabel: portLabel)
+    }
+  }
+
+  private func valueChangedEvaluation() throws {
+    let newValue = try readValue()
+    let previousValue = lastChangedValue
+    if previousValue == nil || inputProtocol.areSignificantDifferent(newValue: newValue, previousValue: previousValue!) {
+      inputChangedDelegates.invoke(parameter: newValue) { $0.newInputValue($1) }
+      lastChangedValue = newValue
+    }
   }
 
   private func readBytes() throws -> [UInt8] {

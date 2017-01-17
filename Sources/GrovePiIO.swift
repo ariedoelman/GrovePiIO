@@ -46,6 +46,7 @@ public protocol GrovePiInputProtocol {
   var responseValueLength: UInt8 { get }
 
   func convert(valueBytes: [UInt8]) -> InputValue
+  func areSignificantDifferent(newValue: InputValue, previousValue: InputValue) -> Bool
 }
 
 public protocol GrovePiOutputUnit: GrovePiIOUnit {
@@ -59,6 +60,9 @@ public protocol InputValueChangedDelegate: class {
 
 public protocol GrovePiInputSource: class {
   associatedtype InputValue: GrovePiInputValueType
+
+  var portLabel: GrovePiPortLabel { get }
+  var inputUnit: GrovePiInputUnit { get }
 
   func readValue() throws -> InputValue
   func addValueChangedDelegate(_ delegate: InputValueChangedDelegate)

@@ -52,5 +52,6 @@ private struct UltrasonicRangerProtocol: GrovePiInputProtocol {
   public func convert(valueBytes: [UInt8]) -> InputValue {
     return AnalogueValue10(bigEndianBytes: valueBytes)
   }
+
 }
 

@@ -81,6 +81,24 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
     }
     return TemperatureAndHumidity(temperature: temperature, humidity: humidity)
   }
+
+  public func areSignificantDifferent(newValue: TemperatureAndHumidity, previousValue: TemperatureAndHumidity) -> Bool {
+    if newValue.temperature.isNaN {
+      if !previousValue.temperature.isNaN {
+        return true
+      }
+    } else if previousValue.temperature.isNaN || abs(newValue.temperature - previousValue.temperature) >= 1.0 {
+      return true
+    }
+    if newValue.humidity.isNaN {
+      if !previousValue.humidity.isNaN {
+        return true
+      }
+    } else if previousValue.humidity.isNaN || abs(newValue.humidity - previousValue.humidity) >= 1.0 {
+      return true
+    }
+    return false
+  }
 }
 
 
