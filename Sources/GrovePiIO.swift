@@ -58,11 +58,15 @@ public protocol InputValueChangedDelegate: class {
   func newInputValue<IDT: GrovePiInputValueType>(_ inputData: IDT, _ timeIntervalSinceReferenceDate: TimeInterval)
 }
 
-public protocol GrovePiInputSource: class {
-  associatedtype InputValue: GrovePiInputValueType
-
+public protocol GrovePiPortConnection {
   var portLabel: GrovePiPortLabel { get }
   var inputUnit: GrovePiInputUnit { get }
+
+  func disconnect() throws
+}
+
+public protocol GrovePiInputSource: class, GrovePiPortConnection {
+  associatedtype InputValue: GrovePiInputValueType
 
   func readValue() throws -> InputValue
   func addValueChangedDelegate(_ delegate: InputValueChangedDelegate)

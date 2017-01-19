@@ -33,12 +33,12 @@ public extension GrovePiInputProtocol {
 private final class GrovePiArduinoBus: GrovePiBus {
   private static var bus: GrovePiArduinoBus? = nil
   let busNumber: UInt8 = 1
-  let criticalSection: Lock = Lock()
+  let serialBusLock: Lock = Lock()
   var fd: Int32 = -1
   var r_buf = [UInt8](repeating: 0, count: 32)
   var w_buf = [UInt8](repeating: 0, count: 4)
 
-  private var portMap: [EquatablePortLabel : GrovePiIOUnit]
+  private var portMap: [EquatablePortLabel : GrovePiPortConnection]
   var scanner: GrovePiBusScanner
 
   static func connectBus() throws -> GrovePiBus {
@@ -68,8 +68,16 @@ private final class GrovePiArduinoBus: GrovePiBus {
     guard inputUnit.supportedPortTypes.contains(portLabel.type) else {
       throw GrovePiError.UnsupportedPortTypeForUnit(unitDescription: inputUnit.description, portTypeDescription: portLabel.type.description)
     }
-    portMap[wrapper] = inputUnit
-    return AnyGrovePiInputSource(try ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputUnit: inputUnit, inputProtocol: inputProtocol))
+    let inputSource = try ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputUnit: inputUnit, inputProtocol: inputProtocol)
+    portMap[wrapper] = inputSource
+    return AnyGrovePiInputSource(inputSource)
+  }
+
+  func disconnect(from portLabel: GrovePiPortLabel) throws {
+    let wrapper = EquatablePortLabel(portLabel)
+    if let inputSource = portMap.removeValue(forKey: wrapper) {
+      try inputSource.disconnect()
+    }
   }
   
   deinit {
@@ -126,6 +134,13 @@ private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: Gro
     }
   }
 
+  func disconnect() throws {
+    if inputChangedDelegates.count > 0 {
+      inputChangedDelegates.removeAllDelegates()
+      arduinoBus?.scanner.removeScanItem(portLabel: portLabel)
+    }
+  }
+
   private func valueChangedEvaluation(timeIntervalSinceReferenceDate: TimeInterval) throws {
     let newValue = try readValue()
     let previousValue = lastChangedValue
@@ -151,7 +166,7 @@ private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: Gro
 extension GrovePiArduinoBus {
   func readCommand(command: UInt8, portID: UInt8, parameter1: UInt8, parameter2: UInt8, delay: UInt32, returnLength: UInt8) throws -> [UInt8] {
     var bytes: [UInt8] = [0]
-    try criticalSection.locked {
+    try serialBusLock.locked {
       try writeBlock(command, portID, parameter1, parameter2)
       if (delay > 0) {
         usleep(delay) // without delay always returns zeroes the first time
@@ -168,7 +183,7 @@ extension GrovePiArduinoBus {
   }
 
   func setIOMode(_ ioMode: IOMode, on portLabel: GrovePiPortLabel) throws {
-    try criticalSection.locked {
+    try serialBusLock.locked {
       try writeBlock(5, portLabel.id, ioMode.rawValue)
     }
   }

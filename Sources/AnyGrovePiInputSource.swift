@@ -28,6 +28,11 @@ public final class AnyGrovePiInputSource<InputValue: GrovePiInputValueType>: Gro
   public func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
     return box.removeValueChangedDelegate(delegate)
   }
+
+  public func disconnect() throws {
+    try box.disconnect()
+  }
+
 }
 
 private final class _AnyGrovePiInputSourceBox<IS: GrovePiInputSource>: _AnyGrovePiInputSourceBoxBase<IS.InputValue> {
@@ -51,6 +56,10 @@ private final class _AnyGrovePiInputSourceBox<IS: GrovePiInputSource>: _AnyGrove
   override func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
     return base.removeValueChangedDelegate(delegate)
   }
+
+  override func disconnect() throws {
+    try base.disconnect()
+  }
 }
 
 private class _AnyGrovePiInputSourceBoxBase<InputValue: GrovePiInputValueType>: GrovePiInputSource {
@@ -60,5 +69,5 @@ private class _AnyGrovePiInputSourceBoxBase<InputValue: GrovePiInputValueType>: 
   func readValue() throws -> InputValue { fatalError() }
   func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) { fatalError() }
   func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) { fatalError() }
-
+  func disconnect() throws { fatalError() }
 }

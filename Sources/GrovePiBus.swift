@@ -12,6 +12,8 @@ public protocol GrovePiBus: class {
   func connect<IP: GrovePiInputProtocol>(inputUnit: GrovePiInputUnit,
                to portLabel: GrovePiPortLabel,
                using inputProtocol: IP) throws -> AnyGrovePiInputSource<IP.InputValue>
+
+  func disconnect(from portLabel: GrovePiPortLabel) throws
 }
 
 
