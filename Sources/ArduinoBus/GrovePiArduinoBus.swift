@@ -126,11 +126,11 @@ private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: Gro
     }
   }
 
-  private func valueChangedEvaluation() throws {
+  private func valueChangedEvaluation(timeIntervalSinceReferenceDate: TimeInterval) throws {
     let newValue = try readValue()
     let previousValue = lastChangedValue
     if previousValue == nil || inputProtocol.areSignificantDifferent(newValue: newValue, previousValue: previousValue!) {
-      inputChangedDelegates.invoke(parameter: newValue) { $0.newInputValue($1) }
+      inputChangedDelegates.invoke(parameter: newValue, invocation: { $0.newInputValue($1, timeIntervalSinceReferenceDate) })
       lastChangedValue = newValue
     }
   }

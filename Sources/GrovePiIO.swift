@@ -55,7 +55,7 @@ public protocol GrovePiOutputUnit: GrovePiIOUnit {
 }
 
 public protocol InputValueChangedDelegate: class {
-  func newInputValue<IDT: GrovePiInputValueType>(_ inputData: IDT)
+  func newInputValue<IDT: GrovePiInputValueType>(_ inputData: IDT, _ timeIntervalSinceReferenceDate: TimeInterval)
 }
 
 public protocol GrovePiInputSource: class {
