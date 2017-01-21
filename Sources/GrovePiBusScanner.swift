@@ -61,7 +61,7 @@ internal final class GrovePiBusScanner {
     } else if !scanItems.isEmpty {
       let minimumInterval = scanItems.reduce(1_000_000, { min($0, $1.sampleTimeInterval) })
       if scheduler!.pollTimeInterval != minimumInterval {
-        scheduler?.pollTimeInterval = minimumInterval
+        scheduler!.pollTimeInterval = minimumInterval
       }
     } else {
       scheduler!.cancel()
@@ -133,6 +133,7 @@ private final class Scheduler {
       }
     }
     dispatchQueue.async(execute: scanSchedulerWorkItem!)
+    self.semaphore.signal()
   }
 
   func cancel() {
