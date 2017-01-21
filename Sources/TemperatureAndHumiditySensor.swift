@@ -25,7 +25,7 @@ public struct TemperatureAndHumidity: GrovePiInputValueType {
   public var humidity: Float
 }
 
-public struct TemperatureAndHumiditySensor: GrovePiInputUnit {
+public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
   public let moduleType: DHTModuleType
   public let supportedPortTypes: [PortType]
   public var sampleTimeInterval: TimeInterval
@@ -35,20 +35,58 @@ public struct TemperatureAndHumiditySensor: GrovePiInputUnit {
     self.sampleTimeInterval = sampleTimeInterval
     supportedPortTypes = [.digital]
   }
+
+  public static func ==(_ lhs: TemperatureAndHumiditySensorUnit, _ rhs: TemperatureAndHumiditySensorUnit) -> Bool {
+    return lhs.ioMode == rhs.ioMode && lhs.sampleTimeInterval == rhs.sampleTimeInterval && lhs.supportedPortTypes == rhs.supportedPortTypes
+              && lhs.moduleType == rhs.moduleType
+  }
 }
+
+public final class TemperatureAndHumiditySensorSource: GrovePiInputSource {
+  private var delegate: AnyGrovePiInputSource<GrovePiDigitalPortLabel, TemperatureAndHumiditySensorUnit, TemperatureAndHumidity>
+  public var portLabel: GrovePiDigitalPortLabel { return delegate.portLabel }
+  public var inputUnit: TemperatureAndHumiditySensorUnit { return delegate.inputUnit }
+  public var delegatesCount: Int { return delegate.delegatesCount }
+
+  fileprivate init(_ delegate: AnyGrovePiInputSource<GrovePiDigitalPortLabel, TemperatureAndHumiditySensorUnit, TemperatureAndHumidity>) {
+    self.delegate = delegate
+  }
+
+  public func readValue() throws -> TemperatureAndHumidity {
+    return try delegate.readValue()
+  }
+
+  public func addValueChangedDelegate<D: InputValueChangedDelegate>(_ valueChangedDelegate: D) throws /*where D.InputValue == TemperatureAndHumidity*/ {
+    return try delegate.addValueChangedDelegate(valueChangedDelegate)
+  }
+
+  public func removeValueChangedDelegate<D: InputValueChangedDelegate>(_ valueChangedDelegate: D) throws /*where D.InputValue == TemperatureAndHumidity*/ {
+    return try delegate.removeValueChangedDelegate(valueChangedDelegate)
+  }
+
+  public func connect() throws {
+    try delegate.connect()
+  }
+
+  public func disconnect() throws {
+    try delegate.disconnect()
+  }
+}
+
+
 
 // MARK: - Public extensions
 
 public extension GrovePiBus {
   func connectTemperatureAndHumiditySensor(to portLabel: GrovePiDigitalPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 1.0)
-  throws -> AnyGrovePiInputSource<TemperatureAndHumidity> {
-    let sensor = TemperatureAndHumiditySensor(moduleType: moduleType, sampleTimeInterval: sampleTimeInterval)
-    let `protocol` = TemperatureAndHumidityProtocol(sensor: sensor)
-    return try connect(inputUnit: sensor, to: portLabel, using: `protocol`)
+  throws -> TemperatureAndHumiditySensorSource {
+    let sensorUnit = TemperatureAndHumiditySensorUnit(moduleType: moduleType, sampleTimeInterval: sampleTimeInterval)
+    let inputProtocol = TemperatureAndHumidityProtocol(moduleType: moduleType)
+    return TemperatureAndHumiditySensorSource(try busDelegate.connect(portLabel: portLabel, to: sensorUnit, using: inputProtocol))
   }
 }
 
-public extension TemperatureAndHumiditySensor {
+public extension TemperatureAndHumiditySensorUnit {
   public var description: String { return "TemperatureAndHumiditySensor: \(moduleType.description), port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
 }
@@ -62,8 +100,8 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
   public let readCommandAdditionalParameters: [UInt8]
   public let responseValueLength: UInt8 = 8
 
-  public init(sensor: TemperatureAndHumiditySensor) {
-    readCommandAdditionalParameters = [sensor.moduleType.id]
+  public init(moduleType: DHTModuleType) {
+    readCommandAdditionalParameters = [moduleType.id]
   }
 
   public func convert(valueBytes: [UInt8]) -> InputValue {

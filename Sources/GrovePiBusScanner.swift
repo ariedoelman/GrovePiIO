@@ -21,7 +21,7 @@ internal final class GrovePiBusScanner {
     criticalSection = Lock()
   }
 
-  func addScanItem(portLabel: GrovePiPortLabel, sampleTimeInterval: TimeInterval, evaluation: @escaping (TimeInterval) throws -> ()) {
+  func addScanItem<PL: GrovePiPortLabel>(portLabel: PL, sampleTimeInterval: TimeInterval, evaluation: @escaping (TimeInterval) throws -> ()) {
     let scanItem = ScanItem(portLabel: portLabel,
                             sampleTimeInterval: max(sampleTimeInterval, minimumSampleTimeInterval),
                             evaluation: evaluation)
@@ -31,10 +31,10 @@ internal final class GrovePiBusScanner {
     criticalSection.unlock()
   }
 
-  func removeScanItem(portLabel: GrovePiPortLabel) {
-    let equatablePortLabel = EquatablePortLabel(portLabel)
+  func removeScanItem<PL: GrovePiPortLabel>(portLabel: PL) {
+    let wrappedPortLabel = AnyGrovePiPortLabel(portLabel)
     criticalSection.lock()
-    if let toBeRemovedIndex = scanItems.index(where: { return $0.equatablePortLabel == equatablePortLabel }) {
+    if let toBeRemovedIndex = scanItems.index(where: { return $0.wrappedPortLabel == wrappedPortLabel }) {
       scanItems.remove(at: toBeRemovedIndex)
       setupAdaptOrRemoveScheduler()
     }
@@ -52,7 +52,7 @@ internal final class GrovePiBusScanner {
                 try scanItem.evaluate(timeIntervalSinceReferenceDate: t)
               } catch { // ignore error (report where?)
                 // remove it from the list since it caused trouble
-                self.removeScanItem(portLabel: scanItem.equatablePortLabel.portLabel)
+                self.removeScanItem(portLabel: scanItem.wrappedPortLabel)
               }
             }
           }
@@ -73,25 +73,25 @@ internal final class GrovePiBusScanner {
 }
 
 extension GrovePiInputProtocol where InputValue == AnalogueValue10 {
-  public func areSignificantDifferent(newValue: AnalogueValue10, previousValue: AnalogueValue10) -> Bool {
-    return abs(Int16(newValue) - Int16(previousValue)) >= 2
+  func areSignificantDifferent(newValue: AnalogueValue10, previousValue: AnalogueValue10) -> Bool {
+    return abs(Int16(newValue) - Int16(previousValue)) >= 1
   }
 }
 
 extension GrovePiInputProtocol where InputValue == DigitalValue {
-  public func areSignificantDifferent(newValue: DigitalValue, previousValue: DigitalValue) -> Bool {
+  func areSignificantDifferent(newValue: DigitalValue, previousValue: DigitalValue) -> Bool {
     return newValue.rawValue != previousValue.rawValue
   }
 }
 
 private final class ScanItem {
-  let equatablePortLabel: EquatablePortLabel
+  let wrappedPortLabel: AnyGrovePiPortLabel
   let sampleTimeInterval: TimeInterval
   let evaluation: (TimeInterval) throws -> ()
   var nextTimeInterval: TimeInterval
 
-  init(portLabel: GrovePiPortLabel, sampleTimeInterval: TimeInterval, evaluation: @escaping (TimeInterval) throws -> ()) {
-    self.equatablePortLabel = EquatablePortLabel(portLabel)
+  init<PL: GrovePiPortLabel>(portLabel: PL, sampleTimeInterval: TimeInterval, evaluation: @escaping (TimeInterval) throws -> ()) {
+    self.wrappedPortLabel = AnyGrovePiPortLabel(portLabel)
     self.sampleTimeInterval = sampleTimeInterval
     self.evaluation = evaluation
     nextTimeInterval = ScanItem.alignedInitialTimeInterval(sampleTimeInterval)

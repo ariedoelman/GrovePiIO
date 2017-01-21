@@ -8,12 +8,37 @@
 
 import Foundation
 
-public protocol GrovePiBus: class {
-  func connect<IP: GrovePiInputProtocol>(inputUnit: GrovePiInputUnit,
-               to portLabel: GrovePiPortLabel,
-               using inputProtocol: IP) throws -> AnyGrovePiInputSource<IP.InputValue>
+public final class GrovePiBus {
+  private static var bus: GrovePiBus? = nil
+  let busDelegate: GrovePiArduinoBus
 
-  func disconnect(from portLabel: GrovePiPortLabel) throws
+  public static func connectBus() throws -> GrovePiBus {
+    if bus == nil {
+      bus = try GrovePiBus()
+    }
+    return bus!
+  }
+
+  public static func disconnectBus() throws {
+    guard let _ = bus else { return }
+    bus = nil
+    try GrovePiArduinoBus.disconnectBus()
+  }
+
+  private init() throws {
+    busDelegate = try GrovePiArduinoBus.connectBus()
+  }
+
+  deinit {
+    try? GrovePiArduinoBus.disconnectBus()
+  }
+
+  func disconnect<PL: GrovePiPortLabel>(from portLabel: PL) throws {
+    guard GrovePiBus.bus != nil else {
+      throw GrovePiError.DisconnectedBus
+    }
+    try busDelegate.disconnect(from: portLabel)
+  }
 }
 
 

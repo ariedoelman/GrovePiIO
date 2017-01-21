@@ -28,7 +28,7 @@ public enum IOMode: UInt8 {
   case output = 1
 }
 
-public protocol GrovePiIOUnit: CustomStringConvertible {
+public protocol GrovePiIOUnit: Equatable, CustomStringConvertible {
   var ioMode: IOMode { get }
   var supportedPortTypes: [PortType] { get }
 }
@@ -37,40 +37,22 @@ public protocol GrovePiInputUnit: GrovePiIOUnit {
   var sampleTimeInterval: TimeInterval { get }
 }
 
-public protocol GrovePiInputProtocol {
-  associatedtype InputValue: GrovePiInputValueType
-
-  var readCommand: UInt8 { get }
-  var readCommandAdditionalParameters: [UInt8] { get }
-  var delayReadAfterCommandTimeInterval: TimeInterval { get }
-  var responseValueLength: UInt8 { get }
-
-  func convert(valueBytes: [UInt8]) -> InputValue
-  func areSignificantDifferent(newValue: InputValue, previousValue: InputValue) -> Bool
-}
-
 public protocol GrovePiOutputUnit: GrovePiIOUnit {
   associatedtype OutputValue: GrovePiOutputValueType
 
 }
 
-public protocol InputValueChangedDelegate: class {
-  func newInputValue<IDT: GrovePiInputValueType>(_ inputData: IDT, _ timeIntervalSinceReferenceDate: TimeInterval)
-}
-
-public protocol GrovePiPortConnection {
-  var portLabel: GrovePiPortLabel { get }
-  var inputUnit: GrovePiInputUnit { get }
-
+public protocol ConnectablePort {
+  func connect() throws
   func disconnect() throws
 }
 
-public protocol GrovePiInputSource: class, GrovePiPortConnection {
-  associatedtype InputValue: GrovePiInputValueType
+public protocol GrovePiPortConnection: class, ConnectablePort, Equatable {
+  associatedtype PortLabel: GrovePiPortLabel
+  associatedtype InputUnit: GrovePiInputUnit
 
-  func readValue() throws -> InputValue
-  func addValueChangedDelegate(_ delegate: InputValueChangedDelegate)
-  func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate)
+  var portLabel: PortLabel { get }
+  var inputUnit: InputUnit { get }
 }
 
 public protocol GrovePiOutputProtocol {
@@ -97,7 +79,9 @@ public extension GrovePiOutputUnit {
   public var ioMode: IOMode { return .output }
 }
 
-
+public func ==<IU: GrovePiInputUnit>(lhs: IU, rhs: IU) -> Bool {
+  return lhs.ioMode == rhs.ioMode && lhs.sampleTimeInterval == rhs.sampleTimeInterval && lhs.supportedPortTypes == rhs.supportedPortTypes
+}
 
 //public enum LEDColor {
 //  case green, red, blue

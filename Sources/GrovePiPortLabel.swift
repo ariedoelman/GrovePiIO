@@ -8,13 +8,13 @@
 
 import Foundation
 
-public enum PortType: String, CustomStringConvertible {
+public enum PortType: String, Equatable, Hashable, CustomStringConvertible {
   case analogue, digital, i2c, uart
 
   public var description: String { return rawValue }
 }
 
-public protocol GrovePiPortLabel: CustomStringConvertible {
+public protocol GrovePiPortLabel: Equatable, Hashable, CustomStringConvertible {
   var type: PortType { get }
   var id: UInt8 { get }
 }
@@ -82,16 +82,16 @@ public enum GrovePiUARTPortLabel: String, GrovePiPortLabel {
 
 }
 
-public struct EquatablePortLabel: Equatable, Hashable {
-  public let portLabel: GrovePiPortLabel
-  public var hashValue: Int { return portLabel.description.hashValue }
-
-  public init(_ portLabel: GrovePiPortLabel) {
-    self.portLabel = portLabel
-  }
-
-  public static func ==(lhs: EquatablePortLabel, rhs: EquatablePortLabel) -> Bool {
-    return lhs.portLabel.type == rhs.portLabel.type && lhs.portLabel.id == rhs.portLabel.id
-  }
-}
+//public struct EquatablePortLabel: Equatable, Hashable {
+//  public let portLabel: GrovePiPortLabel
+//  public var hashValue: Int { return portLabel.description.hashValue }
+//
+//  public init(_ portLabel: GrovePiPortLabel) {
+//    self.portLabel = portLabel
+//  }
+//
+//  public static func ==(lhs: EquatablePortLabel, rhs: EquatablePortLabel) -> Bool {
+//    return lhs.portLabel.type == rhs.portLabel.type && lhs.portLabel.id == rhs.portLabel.id
+//  }
+//}
 

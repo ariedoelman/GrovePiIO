@@ -15,5 +15,6 @@ public enum GrovePiError: Error {
   case AlreadyOccupiedPort(portDescription: String)
   case UnsupportedPortTypeForUnit(unitDescription: String, portTypeDescription: String)
   case DisconnectedBus
+  case DisconnectedPort(portDescription: String)
 }
 

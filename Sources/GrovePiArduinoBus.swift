@@ -14,23 +14,23 @@
 #endif
 import Foundation
 
-public extension GrovePiBus {
-  public static func connectBus() throws -> GrovePiBus {
-    return try GrovePiArduinoBus.connectBus()
-  }
+internal protocol GrovePiInputProtocol {
+  associatedtype InputValue: GrovePiInputValueType
 
-  public static func disconnectBus() throws {
-    try GrovePiArduinoBus.disconnectBus()
-  }
+  var readCommand: UInt8 { get }
+  var readCommandAdditionalParameters: [UInt8] { get }
+  var delayReadAfterCommandTimeInterval: TimeInterval { get }
+  var responseValueLength: UInt8 { get }
+
+  func convert(valueBytes: [UInt8]) -> InputValue
+  func areSignificantDifferent(newValue: InputValue, previousValue: InputValue) -> Bool
 }
 
-public extension GrovePiInputProtocol {
-  public var delayReadAfterCommandTimeInterval: TimeInterval { return 0.025 } // default delay of 25 ms
+internal extension GrovePiInputProtocol {
+  var delayReadAfterCommandTimeInterval: TimeInterval { return 0.025 } // default delay of 25 ms
 }
 
-// MARK: - Private implementation
-
-private final class GrovePiArduinoBus: GrovePiBus {
+internal final class GrovePiArduinoBus {
   private static var bus: GrovePiArduinoBus? = nil
   let busNumber: UInt8 = 1
   let serialBusLock: Lock = Lock()
@@ -38,46 +38,58 @@ private final class GrovePiArduinoBus: GrovePiBus {
   var r_buf = [UInt8](repeating: 0, count: 32)
   var w_buf = [UInt8](repeating: 0, count: 4)
 
-  private var portMap: [EquatablePortLabel : GrovePiPortConnection]
+  private var portMap: [AnyGrovePiPortLabel : ConnectablePort]
   var scanner: GrovePiBusScanner
 
-  static func connectBus() throws -> GrovePiBus {
+  public static func connectBus() throws -> GrovePiArduinoBus {
     if bus == nil {
       bus = try GrovePiArduinoBus()
     }
     return bus!
   }
 
-  static func disconnectBus() throws {
+  public static func disconnectBus() throws {
     guard bus != nil else { return }
     defer { bus = nil }
-    try bus!.closeIO()
+    try bus!.disconnect()
   }
 
-  init() throws {
+  private init() throws {
     portMap = [:]
     scanner = GrovePiBusScanner()
     try openIO()
   }
 
-  func connect<IP : GrovePiInputProtocol>(inputUnit: GrovePiInputUnit, to portLabel: GrovePiPortLabel, using inputProtocol: IP) throws -> AnyGrovePiInputSource<IP.InputValue> {
-    let wrapper = EquatablePortLabel(portLabel)
-    guard let _ = portMap[wrapper] else {
+  public func connect<PL: GrovePiPortLabel, IU: GrovePiInputUnit, IP: GrovePiInputProtocol>(portLabel: PL, to inputUnit: IU,
+  using inputProtocol: IP) throws -> AnyGrovePiInputSource<PL, IU, IP.InputValue> {
+    let wrappedPortLabel = AnyGrovePiPortLabel(portLabel)
+    if let existingConnection = portMap[wrappedPortLabel] {
+      if let existingInputSource = existingConnection as? ArduinoInputSource<PL,IU,IP>, existingInputSource.portLabel == portLabel {
+
+      }
       throw GrovePiError.AlreadyOccupiedPort(portDescription: portLabel.description)
     }
     guard inputUnit.supportedPortTypes.contains(portLabel.type) else {
       throw GrovePiError.UnsupportedPortTypeForUnit(unitDescription: inputUnit.description, portTypeDescription: portLabel.type.description)
     }
-    let inputSource = try ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputUnit: inputUnit, inputProtocol: inputProtocol)
-    portMap[wrapper] = inputSource
+    let inputSource = ArduinoInputSource(arduinoBus: self, portLabel: portLabel, inputUnit: inputUnit, inputProtocol: inputProtocol)
+    try inputSource.connect()
+    portMap[wrappedPortLabel] = inputSource
     return AnyGrovePiInputSource(inputSource)
   }
 
-  func disconnect(from portLabel: GrovePiPortLabel) throws {
-    let wrapper = EquatablePortLabel(portLabel)
-    if let inputSource = portMap.removeValue(forKey: wrapper) {
-      try inputSource.disconnect()
+  public func disconnect<PL: GrovePiPortLabel>(from portLabel: PL) throws {
+    if let connection = portMap.removeValue(forKey: AnyGrovePiPortLabel(portLabel)) {
+      try connection.disconnect()
     }
+  }
+
+  private func disconnect() throws {
+    while let (port, connection) = portMap.first {
+      try? connection.disconnect()  // ignore errors on port by port basis
+      portMap.removeValue(forKey: port)
+    }
+    try closeIO()
   }
   
   deinit {
@@ -87,17 +99,19 @@ private final class GrovePiArduinoBus: GrovePiBus {
   }
 }
 
-private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: GrovePiInputValueType>: GrovePiInputSource where IP.InputValue == InputValue {
+private final class ArduinoInputSource<PL: GrovePiPortLabel, IU: GrovePiInputUnit, IP: GrovePiInputProtocol>: GrovePiInputSource {
   fileprivate weak var arduinoBus: GrovePiArduinoBus?
-  let portLabel: GrovePiPortLabel
-  let inputUnit: GrovePiInputUnit
+  let portLabel: PL
+  let inputUnit: IU
   let inputProtocol: IP
-  let inputChangedDelegates: MulticastDelegate<InputValueChangedDelegate, InputValue>
+  let inputChangedDelegates: MulticastDelegate<AnyInputValueChangedDelegate<IP.InputValue>, IP.InputValue>
   let delayUSeconds: UInt32
   let extraParameters: [UInt8]
-  var lastChangedValue: InputValue?
+  var lastChangedValue: IP.InputValue?
+  var isConnected: Bool
+  var delegatesCount: Int { return inputChangedDelegates.count }
 
-  fileprivate init(arduinoBus: GrovePiArduinoBus, portLabel: GrovePiPortLabel, inputUnit: GrovePiInputUnit, inputProtocol: IP) throws {
+  fileprivate init(arduinoBus: GrovePiArduinoBus, portLabel: PL, inputUnit: IU, inputProtocol: IP) {
     self.arduinoBus = arduinoBus
     self.portLabel = portLabel
     self.inputUnit = inputUnit
@@ -106,39 +120,54 @@ private final class ArduinoInputSource<IP: GrovePiInputProtocol, InputValue: Gro
     delayUSeconds = inputProtocol.delayReadAfterCommandTimeInterval.uSeconds
     let extraBytes = inputProtocol.readCommandAdditionalParameters
     extraParameters = [extraBytes.count > 0 ? extraBytes[0] : 0, extraBytes.count > 1 ? extraBytes[1] : 0]
-    try arduinoBus.setIOMode(.input, on: portLabel)
+    isConnected = false
   }
 
-  func readValue() throws -> InputValue {
+  func readValue() throws -> IP.InputValue {
+    guard let _ = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
+    guard isConnected else { throw GrovePiError.DisconnectedPort(portDescription: portLabel.description) }
     let valueBytes = try readBytes()
     return inputProtocol.convert(valueBytes: valueBytes)
   }
 
-  func addValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
-    guard let arduinoBus = self.arduinoBus else {
-      return
-    }
-    inputChangedDelegates.addDelegate(delegate)
+  func addValueChangedDelegate<D: InputValueChangedDelegate>(_ delegate: D) throws /*where D.InputValue == IP.InputValue*/ {
+    guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
+    guard isConnected else { throw GrovePiError.DisconnectedPort(portDescription: portLabel.description) }
+    inputChangedDelegates.addDelegate(AnyInputValueChangedDelegate(delegate))
     if inputChangedDelegates.count == 1 {
       arduinoBus.scanner.addScanItem(portLabel: portLabel, sampleTimeInterval: inputUnit.sampleTimeInterval, evaluation: valueChangedEvaluation)
     }
   }
 
-  func removeValueChangedDelegate(_ delegate: InputValueChangedDelegate) {
-    guard let arduinoBus = self.arduinoBus else {
-      return
-    }
-    inputChangedDelegates.removeDelegate(delegate)
+  func removeValueChangedDelegate<D: InputValueChangedDelegate>(_ delegate: D) throws /*where D.InputValue == IP.InputValue*/ {
+    guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
+    guard isConnected else { throw GrovePiError.DisconnectedPort(portDescription: portLabel.description) }
+    inputChangedDelegates.removeDelegate(AnyInputValueChangedDelegate(delegate))
     if inputChangedDelegates.count == 0 {
       arduinoBus.scanner.removeScanItem(portLabel: portLabel)
     }
   }
 
+  func connect() throws {
+    guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
+    guard !isConnected else { return } // no problem to connect more than once
+    isConnected = true
+    try arduinoBus.setIOMode(.input, on: portLabel)
+
+  }
+
   func disconnect() throws {
+    guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
+    guard isConnected else { return } // no problem to disconnect more than once
+    isConnected = false
     if inputChangedDelegates.count > 0 {
       inputChangedDelegates.removeAllDelegates()
-      arduinoBus?.scanner.removeScanItem(portLabel: portLabel)
+      arduinoBus.scanner.removeScanItem(portLabel: portLabel)
     }
+  }
+
+  static func ==(lhs: ArduinoInputSource, rhs: ArduinoInputSource) -> Bool {
+    return lhs.portLabel == rhs.portLabel && lhs.inputUnit == rhs.inputUnit
   }
 
   private func valueChangedEvaluation(timeIntervalSinceReferenceDate: TimeInterval) throws {
@@ -182,7 +211,7 @@ extension GrovePiArduinoBus {
     return [UInt8](bytes[1...Int(returnLength)])
   }
 
-  func setIOMode(_ ioMode: IOMode, on portLabel: GrovePiPortLabel) throws {
+  func setIOMode<PL: GrovePiPortLabel>(_ ioMode: IOMode, on portLabel: PL) throws {
     try serialBusLock.locked {
       try writeBlock(5, portLabel.id, ioMode.rawValue)
     }
