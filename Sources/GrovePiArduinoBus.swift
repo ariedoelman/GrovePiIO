@@ -34,6 +34,8 @@ internal final class GrovePiArduinoBus {
   private static var bus: GrovePiArduinoBus? = nil
   let busNumber: UInt8 = 1
   let serialBusLock: Lock = Lock()
+  let retryCount = 9
+  let delayBeforeRetryInMicroSeconds: UInt32 = 1_000
   var fd: Int32 = -1
   var r_buf = [UInt8](repeating: 0, count: 32)
   var w_buf = [UInt8](repeating: 0, count: 4)
@@ -249,13 +251,15 @@ extension GrovePiArduinoBus {
   func readByte() throws -> UInt8 {
     #if os(Linux)
       var result: Int32 = 0;
-      for _ in 0...retryCount {
+      for n in 0...retryCount {
+        if n > 0 {
+          usleep(delayBeforeRetryInMicroSeconds)
+        }
         r_buf[0] = 0
         result = i2c_smbus_read_byte(fd)
         if result >= 0 {
           break
         }
-        usleep(delayBeforeRetryInMicroSeconds)
       }
       if result < 0 {
         throw GrovePiError.IOError(osError: errno)
@@ -270,13 +274,15 @@ extension GrovePiArduinoBus {
   func readBlock() throws -> [UInt8] {
     #if os(Linux)
       var result: Int32 = 0;
-      for _ in 0...retryCount {
+      for n in 0...retryCount {
+        if n > 0 {
+          usleep(delayBeforeRetryInMicroSeconds)
+        }
         for i in 1..<r_buf.count { r_buf[i] = 0 }
         result = i2c_smbus_read_i2c_block_data(fd, 1, UInt8(r_buf.count), &r_buf[0])
         if result >= 0 {
           break
         }
-        usleep(delayBeforeRetryInMicroSeconds)
       }
       if result < 0 {
         throw GrovePiError.IOError(osError: errno)
@@ -291,12 +297,14 @@ extension GrovePiArduinoBus {
     #if os(Linux)
       w_buf[0] = cmd; w_buf[1] = v1; w_buf[2] = v2; w_buf[3] = v3
       var result: Int32 = 0;
-      for _ in 0...retryCount {
+      for n in 0...retryCount {
+        if n > 0 {
+          usleep(delayBeforeRetryInMicroSeconds)
+        }
         result = i2c_smbus_write_i2c_block_data(fd, 1, UInt8(w_buf.count), w_buf)
         if result >= 0 {
           break
         }
-        usleep(delayBeforeRetryInMicroSeconds)
       }
       if (result < 0) {
         throw GrovePiError.IOError(osError: errno)
