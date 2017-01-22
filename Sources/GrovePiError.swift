@@ -6,24 +6,15 @@
 //
 //
 
-#if os(Linux)
-  import Glibc
-#else
-  import Darwin.C
-#endif
 import Foundation
 
 public enum GrovePiError: Error {
-  case OpenError(osError: POSIXErrorCode)
-  case IOError(osError: POSIXErrorCode)
-  case CloseError(osError: POSIXErrorCode)
+  case OpenError(osError: Int32)
+  case IOError(osError: Int32)
+  case CloseError(osError: Int32)
   case AlreadyOccupiedPort(portDescription: String)
   case UnsupportedPortTypeForUnit(unitDescription: String, portTypeDescription: String)
   case DisconnectedBus
   case DisconnectedPort(portDescription: String)
-
-  public static func fromErrno() -> POSIXErrorCode {
-    return POSIXErrorCode(rawValue: errno) ?? POSIXErrorCode.ENOTRECOVERABLE // choosen the last one in case unknown errno
-  }
 }
 

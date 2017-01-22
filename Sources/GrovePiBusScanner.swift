@@ -10,7 +10,7 @@ import Foundation
 import Dispatch
 
 internal final class GrovePiBusScanner {
-  let minimumSampleTimeInterval: TimeInterval = 0.033
+  let minimumSampleTimeInterval: TimeInterval = 0.001
   private var scanItems: [ScanItem]
   private var scheduler: Scheduler?
   private let evaluationsQueue: DispatchQueue

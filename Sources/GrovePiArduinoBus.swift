@@ -27,7 +27,7 @@ internal protocol GrovePiInputProtocol {
 }
 
 internal extension GrovePiInputProtocol {
-  var delayReadAfterCommandTimeInterval: TimeInterval { return 0.025 } // default delay of 25 ms
+  var delayReadAfterCommandTimeInterval: TimeInterval { return 0.0 } // default delay of 0 s
 }
 
 internal final class GrovePiArduinoBus {
@@ -227,10 +227,10 @@ extension GrovePiArduinoBus {
     #if os(Linux)
       fd = open("/dev/i2c-\(busNumber)", O_RDWR)
       if fd < 0 {
-        throw GrovePiError.OpenError(osError: GrovePiError.fromErrno())
+        throw GrovePiError.OpenError(osError: errno)
       }
       if ioctl(fd, UInt(I2C_SLAVE), 0x04/*Arduino*/) != 0 {
-        throw GrovePiError.IOError(osError: GrovePiError.fromErrno())
+        throw GrovePiError.IOError(osError: errno)
       }
     #endif
   }
@@ -241,7 +241,7 @@ extension GrovePiArduinoBus {
       let result = close(fd)
       fd = -1
       if result < 0 {
-        throw GrovePiError.CloseError(osError: GrovePiError.fromErrno())
+        throw GrovePiError.CloseError(osError: errno)
       }
     #endif
   }
@@ -258,7 +258,7 @@ extension GrovePiArduinoBus {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       if result < 0 {
-        throw GrovePiError.IOError(osError: GrovePiError.fromErrno())
+        throw GrovePiError.IOError(osError: errno)
       }
       r_buf[0] = UInt8(result)
       return UInt8(result)
@@ -279,7 +279,7 @@ extension GrovePiArduinoBus {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       if result < 0 {
-        throw GrovePiError.IOError(osError: GrovePiError.fromErrno())
+        throw GrovePiError.IOError(osError: errno)
       }
       return r_buf
     #else
@@ -299,7 +299,7 @@ extension GrovePiArduinoBus {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       if (result < 0) {
-        throw GrovePiError.IOError(osError: GrovePiError.fromErrno())
+        throw GrovePiError.IOError(osError: errno)
       }
     #endif
   }
