@@ -227,10 +227,10 @@ extension GrovePiArduinoBus {
     #if os(Linux)
       fd = open("/dev/i2c-\(busNumber)", O_RDWR)
       if fd < 0 {
-        throw GrovePiError.OpenError(errno)
+        throw GrovePiError.OpenError(osError: POSIXErrorCode.fromErrno())
       }
       if ioctl(fd, UInt(I2C_SLAVE), 0x04/*Arduino*/) != 0 {
-        throw GrovePiError.IOError(errno)
+        throw GrovePiError.IOError(osError: POSIXErrorCode.fromErrno())
       }
     #endif
   }
@@ -241,7 +241,7 @@ extension GrovePiArduinoBus {
       let result = close(fd)
       fd = -1
       if result < 0 {
-        throw GrovePiError.CloseError(errno)
+        throw GrovePiError.CloseError(osError: POSIXErrorCode.fromErrno())
       }
     #endif
   }
@@ -258,7 +258,7 @@ extension GrovePiArduinoBus {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       if result < 0 {
-        throw GrovePiError.IOError(errno)
+        throw GrovePiError.IOError(osError: POSIXErrorCode.fromErrno())
       }
       r_buf[0] = UInt8(result)
       return UInt8(result)
@@ -279,7 +279,7 @@ extension GrovePiArduinoBus {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       if result < 0 {
-        throw GrovePiError.IOError(errno)
+        throw GrovePiError.IOError(osError: POSIXErrorCode.fromErrno())
       }
       return r_buf
     #else
@@ -299,7 +299,7 @@ extension GrovePiArduinoBus {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       if (result < 0) {
-        throw GrovePiError.IOError(errno)
+        throw GrovePiError.IOError(osError: POSIXErrorCode.fromErrno())
       }
     #endif
   }
