@@ -21,10 +21,8 @@ public enum GrovePiError: Error {
   case UnsupportedPortTypeForUnit(unitDescription: String, portTypeDescription: String)
   case DisconnectedBus
   case DisconnectedPort(portDescription: String)
-}
 
-extension POSIXErrorCode {
-  static func fromErrno() -> POSIXErrorCode {
+  public static func fromErrno() -> POSIXErrorCode {
     return POSIXErrorCode(rawValue: errno) ?? POSIXErrorCode.ENOTRECOVERABLE // choosen the last one in case unknown errno
   }
 }
