@@ -6,6 +6,11 @@
 //
 //
 
+#if os(Linux)
+  import Glibc
+#else
+  import Darwin.C
+#endif
 import Foundation
 
 public enum GrovePiError: Error {
