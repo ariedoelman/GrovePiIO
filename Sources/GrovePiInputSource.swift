@@ -9,7 +9,9 @@
 import Foundation
 
 public protocol GrovePiInputSource: class, GrovePiPortConnection {
+  associatedtype InputUnit: GrovePiInputUnit
   associatedtype InputValue: GrovePiInputValueType
+  var inputUnit: InputUnit { get }
   var delegatesCount: Int { get }
 
   func readValue() throws -> InputValue

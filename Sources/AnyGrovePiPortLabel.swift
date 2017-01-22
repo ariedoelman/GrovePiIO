@@ -10,6 +10,7 @@ import Foundation
 
 public final class AnyGrovePiPortLabel: GrovePiPortLabel {
   private let box: _AnyGrovePiPortLabelBoxBase
+  public var name: String { return box.name }
   public var type: PortType { return box.type }
   public var id: UInt8 { return box.id }
   public var hashValue: Int { return box.hashValue }
@@ -30,6 +31,7 @@ public final class AnyGrovePiPortLabel: GrovePiPortLabel {
 
 private final class _AnyGrovePiPortLabelBox<PL: GrovePiPortLabel>: _AnyGrovePiPortLabelBoxBase {
   let base: PL
+  override var name: String { return base.name }
   override var type: PortType { return base.type }
   override var id: UInt8 { return base.id }
   override var hashValue: Int { return base.hashValue }
@@ -48,6 +50,7 @@ private final class _AnyGrovePiPortLabelBox<PL: GrovePiPortLabel>: _AnyGrovePiPo
 }
 
 private class _AnyGrovePiPortLabelBoxBase: GrovePiPortLabel {
+  var name: String { fatalError()}
   var type: PortType { fatalError()}
   var id: UInt8 { fatalError() }
   var hashValue: Int { fatalError() }

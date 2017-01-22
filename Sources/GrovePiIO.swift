@@ -12,16 +12,16 @@ public enum DigitalValue: UInt8 {
   case low = 0
 }
 
-public typealias AnalogueValue10 = UInt16
+public typealias Range1024 = UInt16
 
-public typealias AnalogueValue8 = UInt8
+public typealias Range256 = UInt8
 
 public protocol GrovePiInputValueType { }
 public protocol GrovePiOutputValueType { }
 
 extension DigitalValue: GrovePiInputValueType, GrovePiOutputValueType { }
-extension AnalogueValue10: GrovePiInputValueType { }
-extension AnalogueValue8: GrovePiOutputValueType { }
+extension Range1024: GrovePiInputValueType { }
+extension Range256: GrovePiOutputValueType { }
 
 public enum IOMode: UInt8 {
   case input = 0
@@ -29,6 +29,8 @@ public enum IOMode: UInt8 {
 }
 
 public protocol GrovePiIOUnit: Equatable, CustomStringConvertible {
+  var name: String { get }
+  var version: String { get }
   var ioMode: IOMode { get }
   var supportedPortTypes: [PortType] { get }
 }
@@ -38,7 +40,7 @@ public protocol GrovePiInputUnit: GrovePiIOUnit {
 }
 
 public protocol GrovePiOutputUnit: GrovePiIOUnit {
-  associatedtype OutputValue: GrovePiOutputValueType
+//  associatedtype OutputValue: GrovePiOutputValueType
 
 }
 
@@ -49,27 +51,15 @@ public protocol ConnectablePort {
 
 public protocol GrovePiPortConnection: class, ConnectablePort, Equatable {
   associatedtype PortLabel: GrovePiPortLabel
-  associatedtype InputUnit: GrovePiInputUnit
 
   var portLabel: PortLabel { get }
-  var inputUnit: InputUnit { get }
-}
-
-public protocol GrovePiOutputProtocol {
-  associatedtype OutputValue: GrovePiOutputValueType
-
-  var writeCommand: UInt8 { get }
-
-  func convert(outputValue: OutputValue) -> [UInt8]
-}
-
-public protocol GrovePiOutputDestination {
-  associatedtype OutputValue: GrovePiOutputValueType
-
-  func writeValue(_ value: OutputValue) throws
 }
 
 // MARK: - default implementations and default values
+
+public extension GrovePiIOUnit {
+  public var version: String { return "1.0" }
+}
 
 public extension GrovePiInputUnit {
   public var ioMode: IOMode { return .input }
@@ -80,39 +70,21 @@ public extension GrovePiOutputUnit {
 }
 
 public func ==<IU: GrovePiInputUnit>(lhs: IU, rhs: IU) -> Bool {
-  return lhs.ioMode == rhs.ioMode && lhs.sampleTimeInterval == rhs.sampleTimeInterval && lhs.supportedPortTypes == rhs.supportedPortTypes
+  return lhs.ioMode == rhs.ioMode && lhs.name == rhs.name
+    && lhs.supportedPortTypes == rhs.supportedPortTypes
+    && lhs.sampleTimeInterval == rhs.sampleTimeInterval
 }
 
-//public enum LEDColor {
-//  case green, red, blue
-//}
+public func ==<IU: GrovePiOutputUnit>(lhs: IU, rhs: IU) -> Bool {
+  return lhs.ioMode == rhs.ioMode && lhs.name == rhs.name
+    && lhs.supportedPortTypes == rhs.supportedPortTypes
+}
 
 //public protocol GrovePiBus: class {
-//  func temperatureAndHumiditySensor(at: GrovePiDigitalPort, moduleType: DHTModuleType) throws -> TemperatureAndHumiditySensor
-//  func ultrasonicRangeSensor(at: GrovePiDigitalPort) throws -> UltrasonicRangeSensor
 //  func ledLight(at: GrovePiDigitalPort, color: LEDColor) throws -> LEDLight
 //  func lightSensor(at: GrovePiAnaloguePort) throws -> LightSensor
 //  func momentaryOnOffButton(at: GrovePiDigitalPort) throws -> MomentaryOnOffButton
 //  func potentioMeter(at: GrovePiAnaloguePort) throws -> PotentioMeter
-//}
-
-//public protocol ChangeReportID: class {
-//  weak var source: GrovePiIOUnit? { get }
-//  var id: Int { get }
-//  func cancel()
-//}
-
-//public protocol GrovePiIOUnit {
-//  var bus: GrovePiBus { get }
-//  var port: GrovePiPortLabel { get }
-//  func cancelChangeReport(withID: ChangeReportID)
-//  func cancelAllChangeReports()
-//}
-
-//
-//public protocol LightSensor: GrovePiIOUnit {
-//  func readIntensity() throws -> UInt16
-//  func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID
 //}
 //
 //public protocol LEDLight: GrovePiIOUnit {
@@ -121,23 +93,6 @@ public func ==<IU: GrovePiInputUnit>(lhs: IU, rhs: IU) -> Bool {
 //  func setValue(_ value: UInt8) throws
 //}
 //
-//public protocol MomentaryOnOffButton: GrovePiIOUnit {
-//  func readState() throws -> DigitalValue
-//  func onChange(report: @escaping (DigitalValue) -> ()) -> ChangeReportID
-//}
-//
-//public protocol PotentioMeter: GrovePiIOUnit {
-//  func readValue() throws -> UInt16
-//  func onChange(report: @escaping (UInt16) -> ()) -> ChangeReportID
-//}
-//
-//public struct GrovePiBusFactory {
-//  public static func getBus() throws -> GrovePiBus {
-//    return try GrovePiArduinoBus1.getBus()
-//  }
-//}
-
-
 
 
 

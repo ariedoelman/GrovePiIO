@@ -8,10 +8,16 @@
 
 import Foundation
 
+public typealias DistanceInCentimeters = UInt16
+
 public struct UltrasonicRangerSensorUnit: GrovePiInputUnit {
+  public let name = "Ultrasonic ranger sensor"
   public let supportedPortTypes: [PortType]
   public let sampleTimeInterval: TimeInterval
   public let delayReadAfterCommandTimeInterval: TimeInterval
+  public let maximumDistanceInCentimeters: DistanceInCentimeters = 400
+
+  public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
   public init(sampleTimeInterval: TimeInterval = 1.0) {
     self.sampleTimeInterval = sampleTimeInterval
@@ -20,7 +26,18 @@ public struct UltrasonicRangerSensorUnit: GrovePiInputUnit {
   }
 }
 
-public typealias DistanceInCentimeters = AnalogueValue10
+// MARK: - Public extensions
+
+public extension GrovePiBus {
+  func connectUltrasonicRangerSensor(portLabel: GrovePiDigitalPortLabel, sampleTimeInterval: TimeInterval = 1.0)
+    throws -> UltrasonicRangerSensorSource {
+      let sensorUnit = UltrasonicRangerSensorUnit(sampleTimeInterval: sampleTimeInterval)
+      let inputProtocol = UltrasonicRangerProtocol()
+      return UltrasonicRangerSensorSource(try busDelegate.connect(portLabel: portLabel, to: sensorUnit, using: inputProtocol))
+  }
+}
+
+// MARK: - Convenience alternative for AnyGrovePiInputSource
 
 public final class UltrasonicRangerSensorSource: GrovePiInputSource {
   private var delegate: AnyGrovePiInputSource<GrovePiDigitalPortLabel, UltrasonicRangerSensorUnit, DistanceInCentimeters>
@@ -54,38 +71,11 @@ public final class UltrasonicRangerSensorSource: GrovePiInputSource {
 
 }
 
-// MARK: - Public extensions
-
-public extension GrovePiBus {
-  func connectUltrasonicRangerSensor(portLabel: GrovePiDigitalPortLabel, sampleTimeInterval: TimeInterval = 1.0)
-    throws -> UltrasonicRangerSensorSource {
-      let sensorUnit = UltrasonicRangerSensorUnit(sampleTimeInterval: sampleTimeInterval)
-      let inputProtocol = UltrasonicRangerProtocol()
-      return UltrasonicRangerSensorSource(try busDelegate.connect(portLabel: portLabel, to: sensorUnit, using: inputProtocol))
-  }
-}
-
-public extension UltrasonicRangerSensorUnit {
-  public var description: String { return "UltrasonicRangerSensor: port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
-  
-}
-
 // MARK: - private implementations
 
 private struct UltrasonicRangerProtocol: GrovePiInputProtocol {
-  public typealias InputValue = AnalogueValue10
+  public typealias InputValue = DistanceInCentimeters
 
   public let readCommand: UInt8 = 40
-  public let readCommandAdditionalParameters: [UInt8]
-  public let responseValueLength: UInt8 = 2
-
-  public init() {
-    readCommandAdditionalParameters = []
-  }
-
-  public func convert(valueBytes: [UInt8]) -> InputValue {
-    return AnalogueValue10(bigEndianBytes: valueBytes)
-  }
-
 }
 

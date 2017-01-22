@@ -12,6 +12,10 @@ public final class GrovePiBus {
   private static var bus: GrovePiBus? = nil
   let busDelegate: GrovePiArduinoBus
 
+  public lazy var firmwareVersion: String = {
+    return self.busDelegate.firmwareVersion
+  }()
+
   public static func connectBus() throws -> GrovePiBus {
     if bus == nil {
       bus = try GrovePiBus()

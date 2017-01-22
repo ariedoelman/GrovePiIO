@@ -26,9 +26,12 @@ public struct TemperatureAndHumidity: GrovePiInputValueType {
 }
 
 public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
+  public let name = "Temperature and humidity sensor"
   public let moduleType: DHTModuleType
   public let supportedPortTypes: [PortType]
   public var sampleTimeInterval: TimeInterval
+
+  public var description: String { return "TemperatureAndHumiditySensor: \(moduleType.description), port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
   public init(moduleType: DHTModuleType, sampleTimeInterval: TimeInterval = 1.0) {
     self.moduleType = moduleType
@@ -41,6 +44,20 @@ public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
               && lhs.moduleType == rhs.moduleType
   }
 }
+
+
+// MARK: - Public extensions
+
+public extension GrovePiBus {
+  func connectTemperatureAndHumiditySensor(to portLabel: GrovePiDigitalPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 1.0)
+  throws -> TemperatureAndHumiditySensorSource {
+    let sensorUnit = TemperatureAndHumiditySensorUnit(moduleType: moduleType, sampleTimeInterval: sampleTimeInterval)
+    let inputProtocol = TemperatureAndHumidityProtocol(moduleType: moduleType)
+    return TemperatureAndHumiditySensorSource(try busDelegate.connect(portLabel: portLabel, to: sensorUnit, using: inputProtocol))
+  }
+}
+
+// MARK: - Convenience alternative for AnyGrovePiInputSource
 
 public final class TemperatureAndHumiditySensorSource: GrovePiInputSource {
   private var delegate: AnyGrovePiInputSource<GrovePiDigitalPortLabel, TemperatureAndHumiditySensorUnit, TemperatureAndHumidity>
@@ -73,24 +90,6 @@ public final class TemperatureAndHumiditySensorSource: GrovePiInputSource {
   }
 }
 
-
-
-// MARK: - Public extensions
-
-public extension GrovePiBus {
-  func connectTemperatureAndHumiditySensor(to portLabel: GrovePiDigitalPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 1.0)
-  throws -> TemperatureAndHumiditySensorSource {
-    let sensorUnit = TemperatureAndHumiditySensorUnit(moduleType: moduleType, sampleTimeInterval: sampleTimeInterval)
-    let inputProtocol = TemperatureAndHumidityProtocol(moduleType: moduleType)
-    return TemperatureAndHumiditySensorSource(try busDelegate.connect(portLabel: portLabel, to: sensorUnit, using: inputProtocol))
-  }
-}
-
-public extension TemperatureAndHumiditySensorUnit {
-  public var description: String { return "TemperatureAndHumiditySensor: \(moduleType.description), port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
-
-}
-
 // MARK: - private implementations
 
 private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
@@ -120,18 +119,14 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
     return TemperatureAndHumidity(temperature: temperature, humidity: humidity)
   }
 
-  public func areSignificantDifferent(newValue: TemperatureAndHumidity, previousValue: TemperatureAndHumidity) -> Bool {
+  public func isDifferenceSignificant(newValue: TemperatureAndHumidity, previousValue: TemperatureAndHumidity) -> Bool {
     if newValue.temperature.isNaN {
-      if !previousValue.temperature.isNaN {
-        return true
-      }
+      // leave it up to humidity comparison
     } else if previousValue.temperature.isNaN || abs(newValue.temperature - previousValue.temperature) >= 1.0 {
       return true
     }
     if newValue.humidity.isNaN {
-      if !previousValue.humidity.isNaN {
-        return true
-      }
+      // NaN should be ignored
     } else if previousValue.humidity.isNaN || abs(newValue.humidity - previousValue.humidity) >= 1.0 {
       return true
     }

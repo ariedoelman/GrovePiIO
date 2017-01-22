@@ -8,13 +8,14 @@
 
 import Foundation
 
-public enum PortType: String, Equatable, Hashable, CustomStringConvertible {
+public enum PortType: String, Equatable, EnumCollection, CustomStringConvertible {
   case analogue, digital, i2c, uart
 
-  public var description: String { return rawValue }
+  public var description: String { return "\(rawValue) port" }
 }
 
-public protocol GrovePiPortLabel: Equatable, Hashable, CustomStringConvertible {
+public protocol GrovePiPortLabel: Equatable, EnumCollection, CustomStringConvertible {
+  var name: String { get }
   var type: PortType { get }
   var id: UInt8 { get }
 }
@@ -30,7 +31,8 @@ public enum GrovePiAnaloguePortLabel: String, GrovePiPortLabel {
     case .A2: return 2
     }
   }
-  public var description: String { return rawValue }
+  public var name: String { return rawValue }
+  public var description: String { return "\(name) \(type.description)" }
 }
 
 public enum GrovePiDigitalPortLabel: String, GrovePiPortLabel {
@@ -48,7 +50,8 @@ public enum GrovePiDigitalPortLabel: String, GrovePiPortLabel {
     case .D8: return 8
     }
   }
-  public var description: String { return rawValue }
+  public var name: String { return rawValue }
+  public var description: String { return "\(name) \(type.description)" }
 }
 
 public enum GrovePiI2CPortLabel: String, GrovePiPortLabel {
@@ -64,7 +67,8 @@ public enum GrovePiI2CPortLabel: String, GrovePiPortLabel {
     case .I2C_3: return 3
     }
   }
-  public var description: String { return rawValue }
+  public var name: String { return rawValue }
+  public var description: String { return "\(name) \(type.description)" }
 }
 
 public enum GrovePiUARTPortLabel: String, GrovePiPortLabel {
@@ -78,20 +82,14 @@ public enum GrovePiUARTPortLabel: String, GrovePiPortLabel {
     case .serial: return 2
     }
   }
-  public var description: String { return rawValue }
-
+  public var name: String { return rawValue }
+  public var description: String {
+    switch self {
+    case .rpiSerial:
+      return "Raspberry Pi serial \(type.description)"
+    case .serial:
+      return "Serial \(type.description)"
+    }
+  }
 }
-
-//public struct EquatablePortLabel: Equatable, Hashable {
-//  public let portLabel: GrovePiPortLabel
-//  public var hashValue: Int { return portLabel.description.hashValue }
-//
-//  public init(_ portLabel: GrovePiPortLabel) {
-//    self.portLabel = portLabel
-//  }
-//
-//  public static func ==(lhs: EquatablePortLabel, rhs: EquatablePortLabel) -> Bool {
-//    return lhs.portLabel.type == rhs.portLabel.type && lhs.portLabel.id == rhs.portLabel.id
-//  }
-//}
 
