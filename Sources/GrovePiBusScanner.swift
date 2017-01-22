@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 
 internal final class GrovePiBusScanner {
   let minimumSampleTimeInterval: TimeInterval = 0.033
