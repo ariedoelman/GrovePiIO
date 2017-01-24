@@ -126,15 +126,19 @@ private final class Scheduler {
     semaphore = DispatchSemaphore(value: 0)
     self.pollTimeInterval = pollTimeInterval
     scanSchedulerWorkItem = DispatchWorkItem(qos: .userInitiated, flags: .assignCurrentContext) {
+      var firstTime = true
       guard let myWorkItem = self.scanSchedulerWorkItem else { return }
       while !myWorkItem.isCancelled {
-        _ = self.semaphore.wait(timeout: DispatchTime(secondsFromNow: pollTimeInterval))
-        guard !myWorkItem.isCancelled else { break }
+        if firstTime {
+          firstTime = false
+        } else {
+          _ = self.semaphore.wait(timeout: DispatchTime(secondsFromNow: pollTimeInterval))
+          guard !myWorkItem.isCancelled else { break }
+        }
         repeatingJob(Date.timeIntervalSinceReferenceDate)
       }
     }
     dispatchQueue.async(execute: scanSchedulerWorkItem!)
-    self.semaphore.signal()
   }
 
   func cancel() {

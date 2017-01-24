@@ -64,10 +64,6 @@ public final class LEDLightDestination: GrovePiOutputDestination {
     try delegate.writeValue(value)
   }
 
-  public func writeDigitalValue(_ value: DigitalValue) throws {
-    try delegate.writeValue(value == .low ? 0 : 255)
-  }
-
   public func connect() throws {
     try delegate.connect()
   }
@@ -75,7 +71,6 @@ public final class LEDLightDestination: GrovePiOutputDestination {
   public func disconnect() throws {
     try delegate.disconnect()
   }
-
 }
 
 // MARK: - private implementations

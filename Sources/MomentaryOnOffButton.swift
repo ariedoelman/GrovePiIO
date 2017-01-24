@@ -15,7 +15,7 @@ public struct MomentaryOnOffButtonUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  public init(sampleTimeInterval: TimeInterval = 0.2) {
+  fileprivate init(sampleTimeInterval: TimeInterval) {
     self.sampleTimeInterval = sampleTimeInterval
   }
 }

@@ -19,7 +19,7 @@ public struct UltrasonicRangerSensorUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  public init(sampleTimeInterval: TimeInterval = 1.0) {
+  fileprivate init(sampleTimeInterval: TimeInterval) {
     self.sampleTimeInterval = sampleTimeInterval
     supportedPortTypes = [.digital]
     delayReadAfterCommandTimeInterval = 0.06 // firmware has a time of 50ms so wait for more than that

@@ -33,7 +33,7 @@ public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
 
   public var description: String { return "TemperatureAndHumiditySensor: \(moduleType.description), port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  public init(moduleType: DHTModuleType, sampleTimeInterval: TimeInterval = 1.0) {
+  fileprivate init(moduleType: DHTModuleType, sampleTimeInterval: TimeInterval) {
     self.moduleType = moduleType
     self.sampleTimeInterval = sampleTimeInterval
     supportedPortTypes = [.digital]

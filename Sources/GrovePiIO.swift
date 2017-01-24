@@ -23,6 +23,10 @@ extension DigitalValue: GrovePiInputValueType, GrovePiOutputValueType { }
 extension Range1024: GrovePiInputValueType { }
 extension Range256: GrovePiOutputValueType { }
 
+public extension DigitalValue {
+  public var range256: Range256 { return self == .low ? 0 : 255 }
+}
+
 public enum IOMode: UInt8 {
   case input = 0
   case output = 1
@@ -79,21 +83,6 @@ public func ==<IU: GrovePiOutputUnit>(lhs: IU, rhs: IU) -> Bool {
   return lhs.ioMode == rhs.ioMode && lhs.name == rhs.name
     && lhs.supportedPortTypes == rhs.supportedPortTypes
 }
-
-//public protocol GrovePiBus: class {
-//  func ledLight(at: GrovePiDigitalPort, color: LEDColor) throws -> LEDLight
-//  func lightSensor(at: GrovePiAnaloguePort) throws -> LightSensor
-//  func momentaryOnOffButton(at: GrovePiDigitalPort) throws -> MomentaryOnOffButton
-//  func potentioMeter(at: GrovePiAnaloguePort) throws -> PotentioMeter
-//}
-//
-//public protocol LEDLight: GrovePiIOUnit {
-//  var color: LEDColor{ get }
-//  func setValue(_ digitalValue: DigitalValue) throws
-//  func setValue(_ value: UInt8) throws
-//}
-//
-
 
 
 
