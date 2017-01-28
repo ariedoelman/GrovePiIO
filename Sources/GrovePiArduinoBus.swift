@@ -123,17 +123,17 @@ extension GrovePiArduinoBus {
     try serialBusLock.locked {
       if GrovePiBus.printCommands { print("Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "delay=\(delay)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
       do {
-      try writeBlock(command, portID, parameter1, parameter2)
-      if (delay > 0) {
-        usleep(delay) // without delay it may return zeroes the first time
-      }
-      bytes[0] = try readByte()
-      if returnLength > 1 {
-        let readBytes = try readBlock()
-        for i in 0..<resultBytesCount {
-          bytes[i] = readBytes[i+1]
+        try writeBlock(command, portID, parameter1, parameter2)
+        if (delay > 0) {
+          usleep(delay) // without delay it may return zeroes the first time
         }
-      }
+        bytes[0] = try readByte()
+        if returnLength > 1 {
+          let readBytes = try readBlock()
+          for i in 0..<resultBytesCount {
+            bytes[i] = readBytes[i+1]
+          }
+        }
       } catch {
         if GrovePiBus.printCommands { print(" throws \(error)") }
         throw error
@@ -171,9 +171,7 @@ extension GrovePiArduinoBus {
       if fd < 0 {
         throw GrovePiError.OpenError(osError: errno)
       }
-      if ioctl(fd, UInt(I2C_SLAVE), 0x04/*Arduino*/) != 0 {
-        throw GrovePiError.IOError(osError: errno)
-      }
+      try setAddress()
     #endif
   }
 
@@ -196,6 +194,7 @@ extension GrovePiArduinoBus {
           usleep(delayBeforeRetryInMicroSeconds)
         }
         r_buf[0] = 0
+        try setAddress()
         result = i2c_smbus_read_byte(fd)
         if result >= 0 {
           break
@@ -219,6 +218,7 @@ extension GrovePiArduinoBus {
           usleep(delayBeforeRetryInMicroSeconds)
         }
         for i in 1..<r_buf.count { r_buf[i] = 0 }
+        try setAddress()
         result = i2c_smbus_read_i2c_block_data(fd, 1, UInt8(r_buf.count), &r_buf[0])
         if result >= 0 {
           break
@@ -241,12 +241,21 @@ extension GrovePiArduinoBus {
         if n > 0 {
           usleep(delayBeforeRetryInMicroSeconds)
         }
+        try setAddress()
         result = i2c_smbus_write_i2c_block_data(fd, 1, UInt8(w_buf.count), w_buf)
         if result >= 0 {
           break
         }
       }
       if (result < 0) {
+        throw GrovePiError.IOError(osError: errno)
+      }
+    #endif
+  }
+
+  private func setAddress() throws {
+    #if os(Linux)
+      if ioctl(fd, UInt(I2C_SLAVE), 0x04/*Arduino*/) != 0 {
         throw GrovePiError.IOError(osError: errno)
       }
     #endif
