@@ -74,7 +74,7 @@ public final class UltrasonicRangerSensorSource: GrovePiInputSource {
 private struct UltrasonicRangerProtocol: GrovePiInputProtocol {
   public typealias InputValue = DistanceInCentimeters
 
-  public let readCommand: UInt8 = 40
+  public let readCommand: UInt8 = 7
   public let delayReadAfterCommandTimeInterval: TimeInterval = 0.06 // firmware has a time of 50ms so wait for more than that
 }
 
