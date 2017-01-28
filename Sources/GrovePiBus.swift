@@ -9,6 +9,8 @@
 import Foundation
 
 public final class GrovePiBus {
+  public static var printCommands = false
+  
   private static var bus: GrovePiBus? = nil
   let busDelegate: GrovePiArduinoBus
 
