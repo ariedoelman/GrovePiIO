@@ -14,7 +14,6 @@ public struct UltrasonicRangerSensorUnit: GrovePiInputUnit {
   public let name = "Ultrasonic ranger sensor"
   public let supportedPortTypes: [PortType]
   public let sampleTimeInterval: TimeInterval
-  public let delayReadAfterCommandTimeInterval: TimeInterval
   public let maximumDistanceInCentimeters: DistanceInCentimeters = 400
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
@@ -22,7 +21,6 @@ public struct UltrasonicRangerSensorUnit: GrovePiInputUnit {
   fileprivate init(sampleTimeInterval: TimeInterval) {
     self.sampleTimeInterval = sampleTimeInterval
     supportedPortTypes = [.digital]
-    delayReadAfterCommandTimeInterval = 0.06 // firmware has a time of 50ms so wait for more than that
   }
 }
 
@@ -77,5 +75,6 @@ private struct UltrasonicRangerProtocol: GrovePiInputProtocol {
   public typealias InputValue = DistanceInCentimeters
 
   public let readCommand: UInt8 = 40
+  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.06 // firmware has a time of 50ms so wait for more than that
 }
 

@@ -120,8 +120,9 @@ extension GrovePiArduinoBus {
   func readCommand(command: UInt8, portID: UInt8, parameter1: UInt8, parameter2: UInt8, delay: UInt32, returnLength: UInt8) throws -> [UInt8] {
     let resultBytesCount = Int(UInt(returnLength))
     var bytes = [UInt8](repeating: 0, count: resultBytesCount)
-    if GrovePiBus.printCommands { print("Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "delay=\(delay)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
     try serialBusLock.locked {
+      if GrovePiBus.printCommands { print("Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "delay=\(delay)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
+      do {
       try writeBlock(command, portID, parameter1, parameter2)
       if (delay > 0) {
         usleep(delay) // without delay it may return zeroes the first time
@@ -133,23 +134,27 @@ extension GrovePiArduinoBus {
           bytes[i] = readBytes[i+1]
         }
       }
+      } catch {
+        if GrovePiBus.printCommands { print(" throws \(error)") }
+        throw error
+      }
+      if GrovePiBus.printCommands { print(" -> \(bytes)") }
     }
-    if GrovePiBus.printCommands { print(" -> \(bytes)") }
     return bytes
   }
 
   func writeCommand(command: UInt8, portID: UInt8, valueBytes: [UInt8]) throws {
     let v0 = valueBytes.count > 0 ? valueBytes[0] : 0
     let v1 = valueBytes.count > 1 ? valueBytes[1] : 0
-    if GrovePiBus.printCommands { print("Write command=\(command)", "port=\(portID)", "val1=\(v0)", "val2=\(v1)", separator: ", ") }
     try serialBusLock.locked {
+      if GrovePiBus.printCommands { print("Write command=\(command)", "port=\(portID)", "val1=\(v0)", "val2=\(v1)", separator: ", ") }
       try writeBlock(command, portID, v0, v1)
     }
   }
 
   func setIOMode(portID: UInt8, _ ioModeValue: UInt8) throws {
-    if GrovePiBus.printCommands { print("Set I/O Mode", "port=\(portID)", "value=\(ioModeValue)", separator: ", ") }
     try serialBusLock.locked {
+      if GrovePiBus.printCommands { print("Set I/O Mode", "port=\(portID)", "value=\(ioModeValue)", separator: ", ") }
       try writeBlock(5, portID, ioModeValue)
     }
   }

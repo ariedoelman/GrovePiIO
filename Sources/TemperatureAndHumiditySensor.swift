@@ -98,6 +98,7 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
   public let readCommand: UInt8 = 40
   public let readCommandAdditionalParameters: [UInt8]
   public let responseValueLength: UInt8 = 8
+  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.01 // give it some time
 
   public init(moduleType: DHTModuleType) {
     readCommandAdditionalParameters = [moduleType.id]
@@ -120,14 +121,15 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
   }
 
   public func isDifferenceSignificant(newValue: TemperatureAndHumidity, previousValue: TemperatureAndHumidity) -> Bool {
-    if newValue.temperature.isNaN {
-      // leave it up to humidity comparison
-    } else if previousValue.temperature.isNaN || abs(newValue.temperature - previousValue.temperature) >= 1.0 {
+    guard !newValue.temperature.isNaN && !newValue.humidity.isNaN else {
+      // if either or both are nan, it is no use to report this, so return no change
+      return false
+    }
+    // this sensor isn't more accurate than 1.0 for both temperature and humidity
+    if previousValue.temperature.isNaN || abs(newValue.temperature - previousValue.temperature) >= 1.0 {
       return true
     }
-    if newValue.humidity.isNaN {
-      // NaN should be ignored
-    } else if previousValue.humidity.isNaN || abs(newValue.humidity - previousValue.humidity) >= 1.0 {
+    if previousValue.humidity.isNaN || abs(newValue.humidity - previousValue.humidity) >= 1.0 {
       return true
     }
     return false
