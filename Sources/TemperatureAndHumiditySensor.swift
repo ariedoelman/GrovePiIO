@@ -98,7 +98,7 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
   public let readCommand: UInt8 = 40
   public let readCommandAdditionalParameters: [UInt8]
   public let responseValueLength: UInt8 = 8
-  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.01 // give it some time
+  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.01 // 10 ms
 
   public init(moduleType: DHTModuleType) {
     readCommandAdditionalParameters = [moduleType.id]

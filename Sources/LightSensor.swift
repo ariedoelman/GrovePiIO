@@ -69,7 +69,7 @@ public final class LightSensorSource: GrovePiInputSource {
 
 private struct LightSensorProtocol: GrovePiInputProtocol {
   public typealias InputValue = Range1024
-  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.01 // give it some time
+  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.001 // 1 ms
 
   // like any other analogue read protocol
 }

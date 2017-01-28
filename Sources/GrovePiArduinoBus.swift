@@ -21,8 +21,6 @@ internal final class GrovePiArduinoBus {
   let retryCount = 9
   let delayBeforeRetryInMicroSeconds: UInt32 = 1_000
   var fd: Int32 = -1
-  var r_buf = [UInt8](repeating: 0, count: 32)
-  var w_buf = [UInt8](repeating: 0, count: 4)
 
   private var portMap: [AnyGrovePiPortLabel : ConnectablePort]
   var scanner: GrovePiBusScanner
@@ -119,7 +117,7 @@ internal final class GrovePiArduinoBus {
 extension GrovePiArduinoBus {
   func readCommand(command: UInt8, portID: UInt8, parameter1: UInt8, parameter2: UInt8, delay: UInt32, returnLength: UInt8) throws -> [UInt8] {
     let resultBytesCount = Int(UInt(returnLength))
-    var bytes = [UInt8](repeating: 0, count: resultBytesCount)
+    var bytes: [UInt8] = []
     try serialBusLock.locked {
       if GrovePiBus.printCommands { print("Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "delay=\(delay)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
       do {
@@ -127,12 +125,12 @@ extension GrovePiArduinoBus {
         if (delay > 0) {
           usleep(delay) // without delay it may return zeroes the first time
         }
-        bytes[0] = try readByte()
+        let singleByte = try readByte()
         if returnLength > 1 {
           let readBytes = try readBlock()
-          for i in 0..<resultBytesCount {
-            bytes[i] = readBytes[i+1]
-          }
+          bytes = [UInt8](readBytes[1...resultBytesCount])
+        } else {
+          bytes = [singleByte]
         }
       } catch {
         if GrovePiBus.printCommands { print(" throws \(error)") }
@@ -168,11 +166,13 @@ extension GrovePiArduinoBus {
   func openIO() throws {
     #if os(Linux)
       fd = open("/dev/i2c-\(busNumber)", O_RDWR)
-      if fd < 0 {
-        throw GrovePiError.OpenError(osError: errno)
-      }
-      try setAddress()
+    #else
+      fd = 1
     #endif
+    if fd < 0 {
+      throw GrovePiError.OpenError(osError: errno)
+    }
+    try setAddress()
   }
 
   func closeIO() throws {
@@ -187,70 +187,68 @@ extension GrovePiArduinoBus {
   }
 
   func readByte() throws -> UInt8 {
-    #if os(Linux)
-      var result: Int32 = 0;
-      for n in 0...retryCount {
-        if n > 0 {
-          usleep(delayBeforeRetryInMicroSeconds)
-        }
-        r_buf[0] = 0
-        try setAddress()
+    var result: Int32 = 0;
+    for n in 0...retryCount {
+      if n > 0 {
+        usleep(delayBeforeRetryInMicroSeconds)
+      }
+      #if os(Linux)
         result = i2c_smbus_read_byte(fd)
-        if result >= 0 {
-          break
-        }
+      #else
+        result = 1
+      #endif
+      if result >= 0 {
+        break
       }
-      if result < 0 {
-        throw GrovePiError.IOError(osError: errno)
-      }
-      r_buf[0] = UInt8(result)
-      return UInt8(result)
-    #else
-      return 0
-    #endif
+    }
+    if result < 0 {
+      throw GrovePiError.IOError(osError: errno)
+    }
+    return UInt8(result)
   }
 
   func readBlock() throws -> [UInt8] {
-    #if os(Linux)
-      var result: Int32 = 0;
-      for n in 0...retryCount {
-        if n > 0 {
-          usleep(delayBeforeRetryInMicroSeconds)
-        }
-        for i in 1..<r_buf.count { r_buf[i] = 0 }
-        try setAddress()
-        result = i2c_smbus_read_i2c_block_data(fd, 1, UInt8(r_buf.count), &r_buf[0])
-        if result >= 0 {
-          break
-        }
+    var inBuffer = [UInt8](repeating: 0xFF, count: 32)
+    var result: Int32 = 0;
+    for n in 0...retryCount {
+      if n > 0 {
+        usleep(delayBeforeRetryInMicroSeconds)
       }
-      if result < 0 {
-        throw GrovePiError.IOError(osError: errno)
+      #if os(Linux)
+        result = i2c_smbus_read_i2c_block_data(fd, 1, UInt8(inBuffer.count), &inBuffer[0])
+      #else
+        result = 1
+      #endif
+      if result >= 0 {
+        break
       }
-      return r_buf
-    #else
-      return [UInt8](repeating: 0, count: 32)
-    #endif
+    }
+    if result < 0 {
+      throw GrovePiError.IOError(osError: errno)
+    }
+    return inBuffer
   }
 
   func writeBlock(_ cmd: UInt8, _ v1: UInt8, _ v2: UInt8 = 0, _ v3: UInt8 = 0) throws {
-    #if os(Linux)
-      w_buf[0] = cmd; w_buf[1] = v1; w_buf[2] = v2; w_buf[3] = v3
-      var result: Int32 = 0;
-      for n in 0...retryCount {
-        if n > 0 {
-          usleep(delayBeforeRetryInMicroSeconds)
-        }
-        try setAddress()
-        result = i2c_smbus_write_i2c_block_data(fd, 1, UInt8(w_buf.count), w_buf)
-        if result >= 0 {
-          break
-        }
+    var outBuffer = [UInt8](repeating: 0, count: 4)
+    outBuffer[0] = cmd; outBuffer[1] = v1; outBuffer[2] = v2; outBuffer[3] = v3
+    var result: Int32 = 0;
+    for n in 0...retryCount {
+      if n > 0 {
+        usleep(delayBeforeRetryInMicroSeconds)
       }
-      if (result < 0) {
-        throw GrovePiError.IOError(osError: errno)
+      #if os(Linux)
+        result = i2c_smbus_write_i2c_block_data(fd, 1, UInt8(outBuffer.count), outBuffer)
+      #else
+        result = 1
+      #endif
+      if result >= 0 {
+        break
       }
-    #endif
+    }
+    if (result < 0) {
+      throw GrovePiError.IOError(osError: errno)
+    }
   }
 
   private func setAddress() throws {
