@@ -9,14 +9,14 @@
 import Foundation
 
 internal extension TimeInterval {
-  var microseconds: UInt32 { return UInt32(self * 1_000_000.0) }
-  var nanoseconds: UInt64 { return UInt64(self * 1_000_000_000.0) }
+  var microseconds: Int32 { return Int32(self * 1_000_000.0) }
+  var nanoseconds: Int64 { return Int64(self * 1_000_000_000.0) }
 
-  init(microseconds: UInt32) {
+  init(microseconds: Int32) {
     self = TimeInterval(Double(microseconds) / 1_000_000.0)
   }
 
-  init(nanoseconds: UInt64) {
+  init(nanoseconds: Int64) {
     self = TimeInterval(Double(nanoseconds) / 1_000_000_000.0)
   }
 }

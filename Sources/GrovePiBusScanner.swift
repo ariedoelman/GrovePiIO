@@ -45,7 +45,7 @@ internal final class GrovePiBusScanner {
   private func setupAdaptOrRemoveScheduler() {
     if scheduler == nil {
       scheduler = Scheduler(initialPollTimeInterval: scanItems.first!.sampleTimeInterval, repeatingJob: { t in
-        let snapshotScanItems = self.scanItems
+        let snapshotScanItems = self.scanItems.sorted(by: { s1, s2 in s1.sampleTimeInterval < s2.sampleTimeInterval })
         snapshotScanItems.forEach({ scanItem in
           if scanItem.nextTimeInterval <= t {
             self.evaluationsQueue.async {
@@ -123,7 +123,7 @@ private final class Scheduler {
     scanSchedulerWorkItem = DispatchWorkItem(qos: .userInitiated, flags: .assignCurrentContext) {
       var firstTime = true
       guard let myWorkItem = self.scanSchedulerWorkItem else { return }
-      var nextTimeSlot = DispatchTime.init(secondsFromNow: self.pollTimeInterval)
+      var nextTimeSlot = DispatchTime.init(secondsFromNow: -0.001)
       while !myWorkItem.isCancelled {
         if firstTime {
           firstTime = false

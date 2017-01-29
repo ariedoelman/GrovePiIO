@@ -60,9 +60,9 @@ internal final class ArduinoInputSource<PL: GrovePiPortLabel, IU: GrovePiInputUn
     self.inputUnit = inputUnit
     self.inputProtocol = inputProtocol
     inputChangedDelegates = MulticastDelegate()
-    gapBeforeMicroseconds = inputProtocol.gapBeforeCommandTimeInterval.microseconds
-    delayMicroseconds = inputProtocol.delayReadAfterCommandTimeInterval.microseconds
-    gapAfterMicroseconds = inputProtocol.gapAfterReadTimeInterval.microseconds
+    gapBeforeMicroseconds = UInt32(inputProtocol.gapBeforeCommandTimeInterval.microseconds)
+    delayMicroseconds = UInt32(inputProtocol.delayReadAfterCommandTimeInterval.microseconds)
+    gapAfterMicroseconds = UInt32(inputProtocol.gapAfterReadTimeInterval.microseconds)
     let extraBytes = inputProtocol.readCommandAdditionalParameters
     extraParameters = [extraBytes.count > 0 ? extraBytes[0] : 0, extraBytes.count > 1 ? extraBytes[1] : 0]
     super.init(arduinoBus: arduinoBus, portLabel: portLabel, ioMode: inputUnit.ioMode)
