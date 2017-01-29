@@ -95,7 +95,7 @@ private final class ScanItem {
     self.wrappedPortLabel = AnyGrovePiPortLabel(portLabel)
     self.sampleTimeInterval = sampleTimeInterval
     self.evaluation = evaluation
-    nextTimeInterval = ScanItem.alignedInitialTimeInterval(sampleTimeInterval)
+    nextTimeInterval = Date.timeIntervalSinceReferenceDate
   }
 
   func evaluate(timeIntervalSinceReferenceDate: TimeInterval) throws {
@@ -103,11 +103,6 @@ private final class ScanItem {
     repeat {
       nextTimeInterval += sampleTimeInterval
     } while nextTimeInterval <= timeIntervalSinceReferenceDate
-  }
-
-  private static func alignedInitialTimeInterval(_ sampleTimeInterval: TimeInterval) -> TimeInterval {
-    let nowReference = Date.timeIntervalSinceReferenceDate
-    return nowReference - nowReference.truncatingRemainder(dividingBy: sampleTimeInterval)
   }
 }
 
@@ -128,12 +123,18 @@ private final class Scheduler {
     scanSchedulerWorkItem = DispatchWorkItem(qos: .userInitiated, flags: .assignCurrentContext) {
       var firstTime = true
       guard let myWorkItem = self.scanSchedulerWorkItem else { return }
+      var nextTimeSlot = DispatchTime.init(secondsFromNow: self.pollTimeInterval)
       while !myWorkItem.isCancelled {
         if firstTime {
           firstTime = false
         } else {
-          _ = self.semaphore.wait(timeout: DispatchTime(secondsFromNow: self.pollTimeInterval))
+          let now = DispatchTime.now()
+          while nextTimeSlot <= now  {
+            nextTimeSlot = nextTimeSlot.added(seconds: self.pollTimeInterval)
+          }
+          _ = self.semaphore.wait(timeout: nextTimeSlot)
           guard !myWorkItem.isCancelled else { break }
+          nextTimeSlot = nextTimeSlot.added(seconds: self.pollTimeInterval)
         }
         repeatingJob(Date.timeIntervalSinceReferenceDate)
       }

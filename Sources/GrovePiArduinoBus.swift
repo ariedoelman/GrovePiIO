@@ -122,7 +122,8 @@ extension GrovePiArduinoBus {
     let resultBytesCount = Int(UInt(returnLength))
     var bytes = [UInt8]()
     try serialBusLock.locked {
-      let gapBeforeNext = nextReadCommandAfter.microsecondsFromNow() + Int32(gapBefore)
+      var gapBeforeNext = nextReadCommandAfter.microsecondsFromNow()
+      if gapBeforeNext <= 0 { gapBeforeNext += Int64(gapBefore) }
       if gapBeforeNext > 0 {
         usleep(UInt32(gapBeforeNext))
       }

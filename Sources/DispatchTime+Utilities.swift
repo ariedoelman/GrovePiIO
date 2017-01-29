@@ -19,7 +19,7 @@ extension DispatchTime {
    Create a dispatch time for a given seconds from now.
    */
   public init(secondsFromNow: TimeInterval) {
-    let uptime = DispatchTime.now().rawValue + secondsFromNow.nanoseconds
+    let uptime = DispatchTime.now().uptimeNanoseconds + secondsFromNow.nanoseconds
     self.init(uptimeNanoseconds: uptime)
   }
 
@@ -42,7 +42,13 @@ extension DispatchTime {
   public func nanosecondsFromNow() -> Int64 {
     return Int64(self.rawValue) - Int64(DispatchTime.now().rawValue)
   }
-  public func microsecondsFromNow() -> Int32 {
-    return Int32(nanosecondsFromNow() / 1000)
+
+  public func microsecondsFromNow() -> Int64 {
+    return nanosecondsFromNow() / 1000
+  }
+
+  public func added(seconds: TimeInterval) -> DispatchTime {
+    let uptime = self.uptimeNanoseconds + seconds.nanoseconds
+    return DispatchTime(uptimeNanoseconds: uptime)
   }
 }
