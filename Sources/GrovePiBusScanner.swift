@@ -75,7 +75,7 @@ internal final class GrovePiBusScanner {
 
 extension GrovePiInputProtocol where InputValue == Range1024 {
   func isDifferenceSignificant(newValue: Range1024, previousValue: Range1024) -> Bool {
-    return abs(Int16(newValue) - Int16(previousValue)) >= 1
+    return abs(Int(newValue) - Int(previousValue)) >= 1
   }
 }
 

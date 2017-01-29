@@ -122,11 +122,11 @@ extension GrovePiArduinoBus {
     let resultBytesCount = Int(UInt(returnLength))
     var bytes = [UInt8]()
     try serialBusLock.locked {
-      if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "gapBefore=\(gapBefore)", "delay=\(delay)", "gapAfter=\(gapAfter)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
-      let gapBeforeNext = -nextReadCommandAfter.microsecondsFromNow() + Int32(gapBefore)
+      let gapBeforeNext = nextReadCommandAfter.microsecondsFromNow() + Int32(gapBefore)
       if gapBeforeNext > 0 {
         usleep(UInt32(gapBeforeNext))
       }
+      if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "gapBefore=\(gapBefore)", "delay=\(delay)", "gapAfter=\(gapAfter)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
       do {
         try writeBlock(command, portID, parameter1, parameter2)
         if (delay > 0) {
@@ -139,7 +139,7 @@ extension GrovePiArduinoBus {
         } else {
           bytes = [singleByte]
         }
-        nextReadCommandAfter = DispatchTime(nanosecondsFromNow: UInt64(gapAfter) * 1000)
+        nextReadCommandAfter = DispatchTime(microsecondsFromNow: gapAfter)
       } catch {
         if GrovePiBus.printCommands { print(" throws \(error)") }
         throw error
