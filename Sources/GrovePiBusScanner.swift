@@ -44,7 +44,7 @@ internal final class GrovePiBusScanner {
 
   private func setupAdaptOrRemoveScheduler() {
     if scheduler == nil {
-      scheduler = Scheduler(pollTimeInterval: scanItems.first!.sampleTimeInterval, repeatingJob: { t in
+      scheduler = Scheduler(initialPollTimeInterval: scanItems.first!.sampleTimeInterval, repeatingJob: { t in
         let snapshotScanItems = self.scanItems
         snapshotScanItems.forEach({ scanItem in
           if scanItem.nextTimeInterval <= t {
@@ -121,10 +121,10 @@ private final class Scheduler {
   private var scanSchedulerWorkItem: DispatchWorkItem?
   private let semaphore: DispatchSemaphore
 
-  init(pollTimeInterval: TimeInterval, repeatingJob: @escaping (TimeInterval) -> ()) {
+  init(initialPollTimeInterval: TimeInterval, repeatingJob: @escaping (TimeInterval) -> ()) {
     dispatchQueue = DispatchQueue(label: "GrovePi Scheduler", qos: .default)
     semaphore = DispatchSemaphore(value: 0)
-    self.pollTimeInterval = pollTimeInterval
+    self.pollTimeInterval = initialPollTimeInterval
     scanSchedulerWorkItem = DispatchWorkItem(qos: .userInitiated, flags: .assignCurrentContext) {
       var firstTime = true
       guard let myWorkItem = self.scanSchedulerWorkItem else { return }
@@ -132,7 +132,7 @@ private final class Scheduler {
         if firstTime {
           firstTime = false
         } else {
-          _ = self.semaphore.wait(timeout: DispatchTime(secondsFromNow: pollTimeInterval))
+          _ = self.semaphore.wait(timeout: DispatchTime(secondsFromNow: self.pollTimeInterval))
           guard !myWorkItem.isCancelled else { break }
         }
         repeatingJob(Date.timeIntervalSinceReferenceDate)

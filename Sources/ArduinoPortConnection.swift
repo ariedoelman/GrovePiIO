@@ -49,7 +49,9 @@ internal final class ArduinoInputSource<PL: GrovePiPortLabel, IU: GrovePiInputUn
   let inputUnit: IU
   let inputProtocol: IP
   let inputChangedDelegates: MulticastDelegate<AnyInputValueChangedDelegate<IP.InputValue>, IP.InputValue>
-  let delayUSeconds: UInt32
+  let gapBeforeMicroseconds: UInt32
+  let delayMicroseconds: UInt32
+  let gapAfterMicroseconds: UInt32
   let extraParameters: [UInt8]
   var lastChangedValue: IP.InputValue?
   var delegatesCount: Int { return inputChangedDelegates.count }
@@ -58,7 +60,9 @@ internal final class ArduinoInputSource<PL: GrovePiPortLabel, IU: GrovePiInputUn
     self.inputUnit = inputUnit
     self.inputProtocol = inputProtocol
     inputChangedDelegates = MulticastDelegate()
-    delayUSeconds = inputProtocol.delayReadAfterCommandTimeInterval.uSeconds
+    gapBeforeMicroseconds = inputProtocol.gapBeforeCommandTimeInterval.microseconds
+    delayMicroseconds = inputProtocol.delayReadAfterCommandTimeInterval.microseconds
+    gapAfterMicroseconds = inputProtocol.gapAfterReadTimeInterval.microseconds
     let extraBytes = inputProtocol.readCommandAdditionalParameters
     extraParameters = [extraBytes.count > 0 ? extraBytes[0] : 0, extraBytes.count > 1 ? extraBytes[1] : 0]
     super.init(arduinoBus: arduinoBus, portLabel: portLabel, ioMode: inputUnit.ioMode)
@@ -111,7 +115,8 @@ internal final class ArduinoInputSource<PL: GrovePiPortLabel, IU: GrovePiInputUn
     guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
     return try arduinoBus.readCommand(command: inputProtocol.readCommand, portID: portLabel.id,
                                       parameter1: extraParameters[0], parameter2: extraParameters[1],
-                                      delay: delayUSeconds, returnLength: inputProtocol.responseValueLength)
+                                      gapBefore: gapBeforeMicroseconds, delay: delayMicroseconds, gapAfter: gapAfterMicroseconds,
+                                      returnLength: inputProtocol.responseValueLength)
   }
   
 }

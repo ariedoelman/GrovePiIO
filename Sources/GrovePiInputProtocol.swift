@@ -13,7 +13,9 @@ internal protocol GrovePiInputProtocol {
 
   var readCommand: UInt8 { get }
   var readCommandAdditionalParameters: [UInt8] { get }
+  var gapBeforeCommandTimeInterval: TimeInterval { get }
   var delayReadAfterCommandTimeInterval: TimeInterval { get }
+  var gapAfterReadTimeInterval: TimeInterval { get }
   var responseValueLength: UInt8 { get }
 
   func convert(valueBytes: [UInt8]) -> InputValue
@@ -21,7 +23,9 @@ internal protocol GrovePiInputProtocol {
 }
 
 internal extension GrovePiInputProtocol {
-  var delayReadAfterCommandTimeInterval: TimeInterval { return 0.0 } // default delay of 0 s
+  var gapBeforeCommandTimeInterval: TimeInterval { return 0.0 }
+  var delayReadAfterCommandTimeInterval: TimeInterval { return 0.0 }
+  var gapAfterReadTimeInterval: TimeInterval { return 0.0 }
 }
 
 internal extension GrovePiInputProtocol where InputValue == Range1024 {

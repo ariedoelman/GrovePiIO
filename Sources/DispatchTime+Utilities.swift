@@ -14,18 +14,24 @@
 import Foundation
 import Dispatch
 
-extension TimeInterval {
-  internal var nanoseconds: UInt64 {
-    return UInt64(self * Double(1_000_000_000))
-  }
-}
-
 extension DispatchTime {
   /**
    Create a dispatch time for a given seconds from now.
    */
   public init(secondsFromNow: TimeInterval) {
-    let uptime = DispatchTime.now().rawValue + secondsFromNow.nanoseconds
+    let uptime = DispatchTime.now().uptimeNanoseconds + secondsFromNow.nanoseconds
     self.init(uptimeNanoseconds: uptime)
+  }
+
+  /**
+   Create a dispatch time for a given nanoseconds from now.
+   */
+  public init(nanosecondsFromNow: UInt64) {
+    let uptime = DispatchTime.now().uptimeNanoseconds + nanosecondsFromNow
+    self.init(uptimeNanoseconds: uptime)
+  }
+
+  public func nanosecondsFromNow() -> UInt64 {
+    return self.uptimeNanoseconds - DispatchTime.now().uptimeNanoseconds
   }
 }
