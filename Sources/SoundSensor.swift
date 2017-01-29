@@ -69,6 +69,5 @@ public final class SoundSensorSource: GrovePiInputSource {
 
 private struct SoundSensorProtocol: GrovePiInputProtocol {
   public typealias InputValue = Range1024
-  public let delayReadAfterCommandTimeInterval: TimeInterval = 0.001 // 1 ms
   // like any other analogue read protocol
 }

@@ -31,7 +31,10 @@ extension DispatchTime {
     self.init(uptimeNanoseconds: uptime)
   }
 
-  public func nanosecondsFromNow() -> UInt64 {
-    return self.uptimeNanoseconds - DispatchTime.now().uptimeNanoseconds
+  public func nanosecondsFromNow() -> Int64 {
+    return Int64(self.uptimeNanoseconds) - Int64(DispatchTime.now().uptimeNanoseconds)
+  }
+  public func microsecondsFromNow() -> Int32 {
+    return Int32(nanosecondsFromNow() / 1000)
   }
 }

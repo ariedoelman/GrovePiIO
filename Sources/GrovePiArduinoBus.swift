@@ -123,11 +123,9 @@ extension GrovePiArduinoBus {
     var bytes = [UInt8]()
     try serialBusLock.locked {
       if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Read command=\(command)", "port=\(portID)", "par1=\(parameter1)", "par2=\(parameter2)", "gapBefore=\(gapBefore)", "delay=\(delay)", "gapAfter=\(gapAfter)", "returnLength=\(returnLength)", separator: ", ", terminator: "") }
-      if gapBefore > 0 {
-        let gapBeforeNext = nextReadCommandAfter.nanosecondsFromNow()
-        if gapBeforeNext > 0 {
-          usleep(UInt32(gapBeforeNext / 1000))
-        }
+      let gapBeforeNext = -nextReadCommandAfter.microsecondsFromNow() + Int32(gapBefore)
+      if gapBeforeNext > 0 {
+        usleep(UInt32(gapBeforeNext))
       }
       do {
         try writeBlock(command, portID, parameter1, parameter2)
