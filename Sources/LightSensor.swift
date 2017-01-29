@@ -15,7 +15,7 @@ public struct LightSensorUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  fileprivate init(sampleTimeInterval: TimeInterval) {
+  public init(sampleTimeInterval: TimeInterval = 60.0) {
     self.sampleTimeInterval = sampleTimeInterval
   }
 }
@@ -23,7 +23,7 @@ public struct LightSensorUnit: GrovePiInputUnit {
 // MARK: - Public extensions
 
 public extension GrovePiBus {
-  func connectLightSensor(portLabel: GrovePiAnaloguePortLabel, sampleTimeInterval: TimeInterval = 1.0)
+  func connectLightSensor(portLabel: GrovePiAnaloguePortLabel, sampleTimeInterval: TimeInterval = 60.0)
     throws -> LightSensorSource {
       let sensorUnit = LightSensorUnit(sampleTimeInterval: sampleTimeInterval)
       let inputProtocol = LightSensorProtocol()

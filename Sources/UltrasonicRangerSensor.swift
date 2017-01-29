@@ -18,7 +18,7 @@ public struct UltrasonicRangerSensorUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  fileprivate init(sampleTimeInterval: TimeInterval) {
+  public init(sampleTimeInterval: TimeInterval = 1.0) {
     self.sampleTimeInterval = sampleTimeInterval
     supportedPortTypes = [.digital]
   }

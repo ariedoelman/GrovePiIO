@@ -15,7 +15,7 @@ public struct MomentaryOnOffButtonUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  fileprivate init(sampleTimeInterval: TimeInterval) {
+  public init(sampleTimeInterval: TimeInterval = 0.25) {
     self.sampleTimeInterval = sampleTimeInterval
   }
 }
@@ -23,7 +23,7 @@ public struct MomentaryOnOffButtonUnit: GrovePiInputUnit {
 // MARK: - Public extensions
 
 public extension GrovePiBus {
-  func connectMomentaryOnOffButton(portLabel: GrovePiDigitalPortLabel, sampleTimeInterval: TimeInterval = 1.0)
+  func connectMomentaryOnOffButton(portLabel: GrovePiDigitalPortLabel, sampleTimeInterval: TimeInterval = 0.25)
     throws -> MomentaryOnOffButtonSource {
       let sensorUnit = MomentaryOnOffButtonUnit(sampleTimeInterval: sampleTimeInterval)
       let inputProtocol = MomentaryOnOffButtonProtocol()

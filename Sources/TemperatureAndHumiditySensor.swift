@@ -17,7 +17,7 @@ public enum DHTModuleType: String, CustomStringConvertible {
     case .white: return 1
     }
   }
-  public var description: String { return rawValue }
+  public var description: String { return rawValue.capitalized }
 }
 
 public struct TemperatureAndHumidity: GrovePiInputValueType {
@@ -26,14 +26,15 @@ public struct TemperatureAndHumidity: GrovePiInputValueType {
 }
 
 public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
-  public let name = "Temperature and humidity sensor"
+  public let name: String
   public let moduleType: DHTModuleType
   public let supportedPortTypes: [PortType]
   public var sampleTimeInterval: TimeInterval
 
-  public var description: String { return "TemperatureAndHumiditySensor: \(moduleType.description), port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
+  public var description: String { return "\(name): port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  fileprivate init(moduleType: DHTModuleType, sampleTimeInterval: TimeInterval) {
+  public init(moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 10.0) {
+    self.name = "Temperature and humidity (\(moduleType.description)) sensor"
     self.moduleType = moduleType
     self.sampleTimeInterval = sampleTimeInterval
     supportedPortTypes = [.digital]
@@ -49,7 +50,7 @@ public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
 // MARK: - Public extensions
 
 public extension GrovePiBus {
-  func connectTemperatureAndHumiditySensor(to portLabel: GrovePiDigitalPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 1.0)
+  func connectTemperatureAndHumiditySensor(to portLabel: GrovePiDigitalPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 10.0)
   throws -> TemperatureAndHumiditySensorSource {
     let sensorUnit = TemperatureAndHumiditySensorUnit(moduleType: moduleType, sampleTimeInterval: sampleTimeInterval)
     let inputProtocol = TemperatureAndHumidityProtocol(moduleType: moduleType)

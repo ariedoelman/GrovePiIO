@@ -15,7 +15,7 @@ public struct PotentiometerUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  fileprivate init(sampleTimeInterval: TimeInterval) {
+  public init(sampleTimeInterval: TimeInterval = 0.25) {
     self.sampleTimeInterval = sampleTimeInterval
   }
 }
@@ -23,7 +23,7 @@ public struct PotentiometerUnit: GrovePiInputUnit {
 // MARK: - Public extensions
 
 public extension GrovePiBus {
-  func connectPotentiometer(portLabel: GrovePiAnaloguePortLabel, sampleTimeInterval: TimeInterval = 1.0)
+  func connectPotentiometer(portLabel: GrovePiAnaloguePortLabel, sampleTimeInterval: TimeInterval = 0.25)
     throws -> PotentiometerSource {
       let sensorUnit = PotentiometerUnit(sampleTimeInterval: sampleTimeInterval)
       let inputProtocol = PotentiometerProtocol()

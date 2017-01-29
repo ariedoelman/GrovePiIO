@@ -15,7 +15,7 @@ public struct SoundSensorUnit: GrovePiInputUnit {
 
   public var description: String { return "\(name): supported port type(s): \(supportedPortTypes), sample time interval: \(sampleTimeInterval) sec" }
 
-  fileprivate init(sampleTimeInterval: TimeInterval) {
+  public init(sampleTimeInterval: TimeInterval = 0.5) {
     self.sampleTimeInterval = sampleTimeInterval
   }
 }
@@ -23,7 +23,7 @@ public struct SoundSensorUnit: GrovePiInputUnit {
 // MARK: - Public extensions
 
 public extension GrovePiBus {
-  func connectSoundSensor(portLabel: GrovePiAnaloguePortLabel, sampleTimeInterval: TimeInterval = 1.0)
+  func connectSoundSensor(portLabel: GrovePiAnaloguePortLabel, sampleTimeInterval: TimeInterval = 0.5)
     throws -> SoundSensorSource {
       let sensorUnit = SoundSensorUnit(sampleTimeInterval: sampleTimeInterval)
       let inputProtocol = SoundSensorProtocol()
