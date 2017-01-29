@@ -20,10 +20,9 @@ public enum DHTModuleType: String, CustomStringConvertible {
   public var description: String { return rawValue.capitalized }
 }
 
-@available(OSX 10.12, *)
 public struct TemperatureAndHumidity: GrovePiInputValueType {
-  public var temperature: Measurement<UnitTemperature>
-  public var humidity: Measurement<UnitHumidity>
+  public var temperature: Float
+  public var humidity: Float
 }
 
 public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
@@ -50,7 +49,6 @@ public struct TemperatureAndHumiditySensorUnit: GrovePiInputUnit {
 
 // MARK: - Public extensions
 
-@available(OSX 10.12, *)
 public extension GrovePiBus {
   func connectTemperatureAndHumiditySensor(to portLabel: GrovePiDigitalPortLabel, moduleType: DHTModuleType = .blue, sampleTimeInterval: TimeInterval = 10.0)
   throws -> TemperatureAndHumiditySensorSource {
@@ -62,7 +60,6 @@ public extension GrovePiBus {
 
 // MARK: - Convenience alternative for AnyGrovePiInputSource
 
-@available(OSX 10.12, *)
 public final class TemperatureAndHumiditySensorSource: GrovePiInputSource {
   private var delegate: AnyGrovePiInputSource<GrovePiDigitalPortLabel, TemperatureAndHumiditySensorUnit, TemperatureAndHumidity>
   public var portLabel: GrovePiDigitalPortLabel { return delegate.portLabel }
@@ -96,7 +93,6 @@ public final class TemperatureAndHumiditySensorSource: GrovePiInputSource {
 
 // MARK: - private implementations
 
-@available(OSX 10.12, *)
 private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
   public typealias InputValue = TemperatureAndHumidity
 
@@ -124,20 +120,19 @@ private struct TemperatureAndHumidityProtocol: GrovePiInputProtocol {
     } else {
       humidity = .nan
     }
-    return TemperatureAndHumidity(temperature: Measurement(value: Double(temperature), unit: UnitTemperature.celsius),
-                                  humidity: Measurement(value: Double(humidity), unit: UnitHumidity.percentage))
+    return TemperatureAndHumidity(temperature: temperature, humidity: humidity)
   }
 
   public func isDifferenceSignificant(newValue: TemperatureAndHumidity, previousValue: TemperatureAndHumidity) -> Bool {
-    guard !newValue.temperature.value.isNaN && !newValue.humidity.value.isNaN else {
+    guard !newValue.temperature.isNaN && !newValue.humidity.isNaN else {
       // if either or both are nan, it is no use to report this, so return no change
       return false
     }
     // this sensor isn't more accurate than 1.0 for both temperature and humidity
-    if previousValue.temperature.value.isNaN || abs(newValue.temperature.value - previousValue.temperature.value) >= 1.0 {
+    if previousValue.temperature.isNaN || abs(newValue.temperature - previousValue.temperature) >= 1.0 {
       return true
     }
-    if previousValue.humidity.value.isNaN || abs(newValue.humidity.value - previousValue.humidity.value) >= 1.0 {
+    if previousValue.humidity.isNaN || abs(newValue.humidity - previousValue.humidity) >= 1.0 {
       return true
     }
     return false
