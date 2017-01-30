@@ -32,18 +32,18 @@ public enum IOMode: UInt8 {
   case output = 1
 }
 
-public protocol GrovePiIOUnit: Equatable, CustomStringConvertible {
+public protocol GrovePiIOUnit: CustomStringConvertible {
   var name: String { get }
   var version: String { get }
   var ioMode: IOMode { get }
   var supportedPortTypes: [PortType] { get }
 }
 
-public protocol GrovePiInputUnit: GrovePiIOUnit {
+public protocol GrovePiInputUnit: Equatable, GrovePiIOUnit {
   var sampleTimeInterval: TimeInterval { get }
 }
 
-public protocol GrovePiOutputUnit: GrovePiIOUnit {
+public protocol GrovePiOutputUnit: Equatable, GrovePiIOUnit {
 //  associatedtype OutputValue: GrovePiOutputValueType
 
 }
