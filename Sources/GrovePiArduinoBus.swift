@@ -209,7 +209,7 @@ extension GrovePiArduinoBus {
 
   func setAddress(_ address: UInt8) throws {
     #if os(Linux)
-      if ioctl(fd, UInt(I2C_SLAVE), address) != 0 {
+      if ioctl_address(fd, UInt(I2C_SLAVE), address) != 0 {
         throw GrovePiError.IOError(osError: errno)
       }
     #endif
