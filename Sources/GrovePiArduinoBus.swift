@@ -17,8 +17,9 @@ import Dispatch
 
 internal final class GrovePiArduinoBus {
   private static var bus: GrovePiArduinoBus? = nil
+  let arduinoAddress: UInt8 = 4
   let busNumber: UInt8 = 1
-  let serialBusLock: Lock = Lock()
+  fileprivate let serialBusLock: Lock = Lock()
   let retryCount = 9
   let delayBeforeRetryInMicroSeconds: UInt32 = 1_000
   var fd: Int32 = -1
@@ -122,6 +123,7 @@ extension GrovePiArduinoBus {
     let resultBytesCount = Int(UInt(returnLength))
     var bytes = [UInt8]()
     try serialBusLock.locked {
+      try setAddress(arduinoAddress)
       var gapBeforeNext = nextReadCommandAfter.microsecondsFromNow()
       if gapBeforeNext <= 0 { gapBeforeNext += Int64(gapBefore) }
       if gapBeforeNext > 0 {
@@ -154,13 +156,21 @@ extension GrovePiArduinoBus {
     let v0 = valueBytes.count > 0 ? valueBytes[0] : 0
     let v1 = valueBytes.count > 1 ? valueBytes[1] : 0
     try serialBusLock.locked {
+      try setAddress(arduinoAddress)
       if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Write command=\(command)", "port=\(portID)", "val1=\(v0)", "val2=\(v1)", separator: ", ") }
       try writeBlock(command, portID, v0, v1)
     }
   }
 
+  func otherWriteCommand<OutputValue>(value: OutputValue, closure: (OutputValue) throws -> ()) throws {
+    try serialBusLock.locked {
+      try closure(value)
+    }
+  }
+
   func setIOMode(portID: UInt8, _ ioModeValue: UInt8) throws {
     try serialBusLock.locked {
+      try setAddress(arduinoAddress)
       if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Set I/O Mode", "port=\(portID)", "value=\(ioModeValue)", separator: ", ") }
       try writeBlock(5, portID, ioModeValue)
     }
@@ -181,16 +191,26 @@ extension GrovePiArduinoBus {
     if fd < 0 {
       throw GrovePiError.OpenError(osError: errno)
     }
-    try setAddress()
   }
 
   func closeIO() throws {
     guard fd >= 0 else { return }
+    var result: Int32
     #if os(Linux)
-      let result = close(fd)
-      fd = -1
-      if result < 0 {
-        throw GrovePiError.CloseError(osError: errno)
+      result = close(fd)
+    #else
+      result = fd >= 0 ? 1 : -1
+    #endif
+    fd = -1
+    if result < 0 {
+      throw GrovePiError.CloseError(osError: errno)
+    }
+  }
+
+  func setAddress(_ address: UInt8) throws {
+    #if os(Linux)
+      if ioctl(fd, UInt(I2C_SLAVE), address) != 0 {
+        throw GrovePiError.IOError(osError: errno)
       }
     #endif
   }
@@ -260,12 +280,24 @@ extension GrovePiArduinoBus {
     }
   }
 
-  private func setAddress() throws {
-    #if os(Linux)
-      if ioctl(fd, UInt(I2C_SLAVE), 0x04/*Arduino*/) != 0 {
-        throw GrovePiError.IOError(osError: errno)
+  func writeByte(_ cmd: UInt8, val: UInt8) throws {
+    var result: Int32 = 0;
+    for n in 0...retryCount {
+      if n > 0 {
+        usleep(delayBeforeRetryInMicroSeconds)
       }
-    #endif
+      #if os(Linux)
+        result = i2c_smbus_write_byte_data(fd, cmd, val)
+      #else
+        result = 1
+      #endif
+      if result >= 0 {
+        break
+      }
+    }
+    if (result < 0) {
+      throw GrovePiError.IOError(osError: errno)
+    }
   }
 
 }

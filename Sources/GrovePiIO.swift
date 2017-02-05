@@ -22,6 +22,7 @@ public protocol GrovePiOutputValueType { }
 extension DigitalValue: GrovePiInputValueType, GrovePiOutputValueType { }
 extension Range1024: GrovePiInputValueType { }
 extension Range256: GrovePiOutputValueType { }
+extension String: GrovePiOutputValueType { }
 
 public extension DigitalValue {
   public var range256: Range256 { return self == .low ? 0 : 255 }

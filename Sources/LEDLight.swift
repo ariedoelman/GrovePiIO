@@ -49,7 +49,7 @@ public extension GrovePiBus {
   }
 }
 
-// MARK: - Convenience alternative for AnyGrovePiOutputSource
+// MARK: - Convenience alternative for AnyGrovePiOutputDestination
 
 public final class LEDLightDestination: GrovePiOutputDestination {
   private var delegate: AnyGrovePiOutputDestination<GrovePiDigitalPortLabel, LEDLightUnit, Range256>

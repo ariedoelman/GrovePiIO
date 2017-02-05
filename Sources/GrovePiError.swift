@@ -16,5 +16,6 @@ public enum GrovePiError: Error {
   case UnsupportedPortTypeForUnit(unitDescription: String, portTypeDescription: String)
   case DisconnectedBus
   case DisconnectedPort(portDescription: String)
+  case UnsupportedOutputValue(outputValueDescription: String)
 }
 

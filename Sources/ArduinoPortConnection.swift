@@ -35,9 +35,10 @@ internal class ArduinoPortConnection<PL: GrovePiPortLabel>: GrovePiPortConnectio
     isConnected = false
   }
 
-  fileprivate func checkConnectionIsOK() throws {
-    guard let _ = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
+  fileprivate func checkConnectionIsOK() throws -> GrovePiArduinoBus {
+    guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
     guard isConnected else { throw GrovePiError.DisconnectedPort(portDescription: portLabel.description) }
+    return arduinoBus
   }
 
   static func ==(lhs: ArduinoPortConnection, rhs: ArduinoPortConnection) -> Bool {
@@ -69,24 +70,24 @@ internal final class ArduinoInputSource<PL: GrovePiPortLabel, IU: GrovePiInputUn
   }
 
   func readValue() throws -> IP.InputValue {
-    try checkConnectionIsOK()
+    _ = try checkConnectionIsOK()
     let valueBytes = try readBytes()
     return inputProtocol.convert(valueBytes: valueBytes)
   }
 
   func addValueChangedDelegate<D: InputValueChangedDelegate>(_ delegate: D) throws /*where D.InputValue == IP.InputValue*/ {
-    try checkConnectionIsOK()
+    let arduinoBus = try checkConnectionIsOK()
     inputChangedDelegates.addDelegate(AnyInputValueChangedDelegate(delegate))
     if inputChangedDelegates.count == 1 {
-      arduinoBus?.scanner.addScanItem(portLabel: portLabel, sampleTimeInterval: inputUnit.sampleTimeInterval, evaluation: valueChangedEvaluation)
+      arduinoBus.scanner.addScanItem(portLabel: portLabel, sampleTimeInterval: inputUnit.sampleTimeInterval, evaluation: valueChangedEvaluation)
     }
   }
 
   func removeValueChangedDelegate<D: InputValueChangedDelegate>(_ delegate: D) throws /*where D.InputValue == IP.InputValue*/ {
-    try checkConnectionIsOK()
+    let arduinoBus = try checkConnectionIsOK()
     inputChangedDelegates.removeDelegate(AnyInputValueChangedDelegate(delegate))
     if inputChangedDelegates.count == 0 {
-      arduinoBus?.scanner.removeScanItem(portLabel: portLabel)
+      arduinoBus.scanner.removeScanItem(portLabel: portLabel)
     }
   }
 
@@ -132,8 +133,16 @@ internal final class ArduinoOutputDestination<PL: GrovePiPortLabel, OU: GrovePiO
   }
 
   func writeValue(_ value: OP.OutputValue) throws {
-    try checkConnectionIsOK()
-    try arduinoBus?.writeCommand(command: outputProtocol.writeCommand(for: value), portID: portLabel.id, valueBytes: outputProtocol.convert(outputValue: value))
+    let arduinoBus = try checkConnectionIsOK()
+    switch outputProtocol.writeCommand {
+    case .arduino(let command):
+      try arduinoBus.writeCommand(command: command, portID: portLabel.id, valueBytes: outputProtocol.convert(outputValue: value))
+    case .other:
+      try arduinoBus.otherWriteCommand(value: value) { value in
+        try outputProtocol.otherWriteCommandImplementation(for: value, to: arduinoBus, at: portLabel)
+      }
+      break
+    }
   }
 
   static func ==(lhs: ArduinoOutputDestination, rhs: ArduinoOutputDestination) -> Bool {
