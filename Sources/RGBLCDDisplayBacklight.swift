@@ -98,7 +98,6 @@ public final class RGB_LCD_DisplayDestination: GrovePiOutputDestination {
 // MARK: - private implementations
 
 private struct RGB_LCD_DisplayProtocol: GrovePiOutputProtocol {
-  public typealias OutputValue = DisplayText
   var writeCommand: WriteCommandType { return .other }
 
   func otherWriteCommandImplementation<PL: GrovePiPortLabel>(for outputValue: DisplayText, to arduinoBus: GrovePiArduinoBus, at _: PL) throws {
