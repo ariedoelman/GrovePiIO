@@ -22,7 +22,8 @@ public struct MotorGearAndDirection {
   }
 
   public init(gear: Range256, direction: MotorDirection) {
-    self.init(gear: gear, direction: direction)
+    self.gear = gear
+    self.direction = direction
   }
 
   public init(direction: MotorDirection) {
