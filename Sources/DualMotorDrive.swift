@@ -106,7 +106,6 @@ public final class MotorDriveDestination: GrovePiOutputDestination {
   public func disconnect() throws {
     try delegate.disconnect()
   }
-
 }
 
 // MARK: - private implementations & extensions
