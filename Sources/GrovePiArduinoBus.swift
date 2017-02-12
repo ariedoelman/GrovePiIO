@@ -281,13 +281,17 @@ extension GrovePiArduinoBus {
   func writeBlock(_ cmd: UInt8, _ v1: UInt8, _ v2: UInt8 = 0, _ v3: UInt8 = 0) throws {
     var outBuffer = [UInt8](repeating: 0, count: 4)
     outBuffer[0] = cmd; outBuffer[1] = v1; outBuffer[2] = v2; outBuffer[3] = v3
+    try writeBlockTo(register: 1, block: outBuffer)
+  }
+
+  func writeBlockTo(register: UInt8, block: [UInt8]) throws {
     var result: Int32 = 0;
     for n in 0...retryCount {
       if n > 0 {
         usleep(delayBeforeRetryInMicroSeconds)
       }
       #if os(Linux)
-        result = i2c_smbus_write_i2c_block_data(fd, 1, UInt8(outBuffer.count), outBuffer)
+        result = i2c_smbus_write_i2c_block_data(fd, register, UInt8(block.count), block)
       #else
         result = 1
       #endif

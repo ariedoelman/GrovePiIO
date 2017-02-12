@@ -129,23 +129,23 @@ private struct MotorDriveProtocol: GrovePiOutputProtocol {
 
 private extension GrovePiArduinoBus {
   var dualMotorDriveAddress: UInt8 { return 0x0F }
-  var motorGearCommand: UInt8 { return 0x82 }
-  var motorDirectionCommand: UInt8 { return 0xAA }
+  var motorGearRegister: UInt8 { return 0x82 }
+  var motorDirectionRegister: UInt8 { return 0xAA }
 
   func write(motorGearA: UInt8, motorGearB: UInt8) throws {
-    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorGearCommand)",
+    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorGearRegister)",
       "val1=\(motorGearA)", "val2=\(motorGearB)", separator: ", ") }
     try setAddress(dualMotorDriveAddress)
-    try writeBlock(motorGearCommand, motorGearA, motorGearB)
+    try writeBlockTo(register: motorGearRegister, block: [motorGearA, motorGearB])
     usleep(20_000)
   }
 
   func write(motorDirectionA: MotorDirection, motorDirectionB: MotorDirection) throws {
     let mdBits = (motorDirectionToBits(motorDirectionA) << 2) | motorDirectionToBits(motorDirectionB)
-    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorDirectionCommand)",
+    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorDirectionRegister)",
       "val1=\(mdBits)", separator: ", ") }
     try setAddress(dualMotorDriveAddress)
-    try writeBlock(motorDirectionCommand, mdBits)
+    try writeBlockTo(register: motorDirectionRegister, block: [mdBits, 0])
     usleep(20_000)
   }
 
