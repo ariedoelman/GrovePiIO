@@ -12,47 +12,55 @@ public enum MotorDirection: String {
   case forward, backward
 }
 
-public struct MotorSpeedAndDirection {
-  public let speed: UInt8?
-  public let direction: MotorDirection?
+public struct MotorGearAndDirection {
+  public var gear: Range256?
+  public var direction: MotorDirection?
 
-  private init(speed: UInt8?, direction: MotorDirection?) {
-    self.speed = speed
+  private init(gear: Range256?, direction: MotorDirection?) {
+    self.gear = gear
     self.direction = direction
   }
 
-  public init(speed: UInt8, direction: MotorDirection) {
-    self.init(speed: speed, direction: direction)
+  public init(gear: Range256, direction: MotorDirection) {
+    self.init(gear: gear, direction: direction)
   }
 
   public init(direction: MotorDirection) {
-    self.init(speed: nil, direction: direction)
+    self.init(gear: nil, direction: direction)
   }
 
-  public init(speed: UInt8) {
-    self.init(speed: speed, direction: nil)
+  public init(gear: Range256) {
+    self.init(gear: gear, direction: nil)
   }
 }
 
-public struct DualMotorSpeedAndDirection: GrovePiOutputValueType {
-  public let motorA: MotorSpeedAndDirection
-  public let motorB: MotorSpeedAndDirection
+public struct DualMotorGearAndDirection: GrovePiOutputValueType {
+  public var motorA: MotorGearAndDirection
+  public var motorB: MotorGearAndDirection
 
-  public init(motorA: MotorSpeedAndDirection, motorB: MotorSpeedAndDirection) {
+  public init(motorA: MotorGearAndDirection, motorB: MotorGearAndDirection) {
     self.motorA = motorA
     self.motorB = motorB
   }
 
-  public init(motorAB: MotorSpeedAndDirection) {
+  public init(motorAB: MotorGearAndDirection) {
     self.init(motorA: motorAB, motorB: motorAB)
   }
 
-  public init(speedAB: UInt8) {
-    self.init(motorAB: MotorSpeedAndDirection(speed: speedAB))
+  public init(gearA: Range256, gearB: Range256) {
+    self.init(motorA: MotorGearAndDirection(gear: gearA), motorB: MotorGearAndDirection(gear: gearB))
+  }
+
+  public init(gearAB: Range256) {
+    self.init(motorAB: MotorGearAndDirection(gear: gearAB))
   }
 
   public init(directionAB: MotorDirection) {
-    self.init(motorAB: MotorSpeedAndDirection(direction: directionAB))
+    self.init(motorAB: MotorGearAndDirection(direction: directionAB))
+  }
+
+  public init(directionA: MotorDirection, directionB: MotorDirection) {
+    self.init(motorA: MotorGearAndDirection(direction: directionA), motorB: MotorGearAndDirection(direction: directionB))
   }
 }
 
@@ -78,15 +86,15 @@ public extension GrovePiBus {
 // MARK: - Convenience alternative for AnyGrovePiOutputDestination
 
 public final class MotorDriveDestination: GrovePiOutputDestination {
-  private var delegate: AnyGrovePiOutputDestination<GrovePiI2CPortLabel, DualMotorDriveUnit, DualMotorSpeedAndDirection>
+  private var delegate: AnyGrovePiOutputDestination<GrovePiI2CPortLabel, DualMotorDriveUnit, DualMotorGearAndDirection>
   public var portLabel: GrovePiI2CPortLabel { return delegate.portLabel }
   public var outputUnit: DualMotorDriveUnit { return delegate.outputUnit }
 
-  public init(_ delegate: AnyGrovePiOutputDestination<GrovePiI2CPortLabel, DualMotorDriveUnit, DualMotorSpeedAndDirection>) {
+  public init(_ delegate: AnyGrovePiOutputDestination<GrovePiI2CPortLabel, DualMotorDriveUnit, DualMotorGearAndDirection>) {
     self.delegate = delegate
   }
 
-  public func writeValue(_ value: DualMotorSpeedAndDirection) throws {
+  public func writeValue(_ value: DualMotorGearAndDirection) throws {
     try delegate.writeValue(value)
   }
 
@@ -105,16 +113,16 @@ public final class MotorDriveDestination: GrovePiOutputDestination {
 private struct MotorDriveProtocol: GrovePiOutputProtocol {
   var writeCommand: WriteCommandType { return .other }
 
-  func otherWriteCommandImplementation<PL: GrovePiPortLabel>(for outputValue: DualMotorSpeedAndDirection, to arduinoBus: GrovePiArduinoBus, at _: PL) throws {
-    if let speedA = outputValue.motorA.speed, let speedB = outputValue.motorB.speed {
-      try arduinoBus.write(motorSpeedA: speedA, motorSpeedB: speedB)
+  func otherWriteCommandImplementation<PL: GrovePiPortLabel>(for outputValue: DualMotorGearAndDirection, to arduinoBus: GrovePiArduinoBus, at _: PL) throws {
+    if let gearA = outputValue.motorA.gear, let gearB = outputValue.motorB.gear {
+      try arduinoBus.write(motorGearA: gearA, motorGearB: gearB)
     }
     if let directionA = outputValue.motorA.direction, let directionB = outputValue.motorB.direction {
       try arduinoBus.write(motorDirectionA: directionA, motorDirectionB: directionB)
     }
   }
 
-  func convert(outputValue: DualMotorSpeedAndDirection) -> [UInt8] {
+  func convert(outputValue: DualMotorGearAndDirection) -> [UInt8] {
     fatalError()
   }
 }
@@ -124,9 +132,9 @@ private extension GrovePiArduinoBus {
   var MOTOR_SPEED_CMD: UInt8 { return 0x82 }
   var MOTOR_DIRECTION_CMD: UInt8 { return 0xAA }
 
-  func write(motorSpeedA: UInt8, motorSpeedB: UInt8) throws {
+  func write(motorGearA: UInt8, motorGearB: UInt8) throws {
     try setAddress(DUAL_MOTOR_DRIVER_ADDR)
-    try writeBlock(MOTOR_SPEED_CMD, motorSpeedA, motorSpeedB)
+    try writeBlock(MOTOR_SPEED_CMD, motorGearA, motorGearB)
     usleep(20_000)
   }
 
