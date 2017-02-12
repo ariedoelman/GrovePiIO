@@ -25,8 +25,12 @@ internal class ArduinoPortConnection<PL: GrovePiPortLabel>: GrovePiPortConnectio
     guard let arduinoBus = self.arduinoBus else { throw GrovePiError.DisconnectedBus }
     guard !isConnected else { return } // no problem to connect more than once
     isConnected = true
-    try arduinoBus.setIOMode(portID: portLabel.id, ioMode.rawValue)
-
+    switch portLabel.type {
+    case .analogue, .digital:
+      try arduinoBus.setIOMode(portID: portLabel.id, ioMode.rawValue)
+    case .i2c, .uart:
+      break
+    }
   }
 
   func disconnect() throws {

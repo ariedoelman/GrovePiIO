@@ -9,7 +9,7 @@
 import Foundation
 
 public enum MotorDirection: String {
-  case forward, backward
+  case forward, backward, none
 }
 
 public struct MotorGearAndDirection {
@@ -129,20 +129,33 @@ private struct MotorDriveProtocol: GrovePiOutputProtocol {
 }
 
 private extension GrovePiArduinoBus {
-  var DUAL_MOTOR_DRIVER_ADDR: UInt8 { return 0x0F }
-  var MOTOR_SPEED_CMD: UInt8 { return 0x82 }
-  var MOTOR_DIRECTION_CMD: UInt8 { return 0xAA }
+  var dualMotorDriveAddress: UInt8 { return 0x0F }
+  var motorGearCommand: UInt8 { return 0x82 }
+  var motorDirectionCommand: UInt8 { return 0xAA }
 
   func write(motorGearA: UInt8, motorGearB: UInt8) throws {
-    try setAddress(DUAL_MOTOR_DRIVER_ADDR)
-    try writeBlock(MOTOR_SPEED_CMD, motorGearA, motorGearB)
+    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorDirectionCommand)",
+      "val1=\(motorGearA)", "val2=\(motorGearB)", separator: ", ") }
+    try setAddress(dualMotorDriveAddress)
+    try writeBlock(motorGearCommand, motorGearA, motorGearB)
     usleep(20_000)
   }
 
   func write(motorDirectionA: MotorDirection, motorDirectionB: MotorDirection) throws {
-    try setAddress(DUAL_MOTOR_DRIVER_ADDR)
-    try writeBlock(MOTOR_DIRECTION_CMD, (motorDirectionA == .forward ? 0x08 : 0x04) | (motorDirectionA == .forward ? 0x02 : 0x01))
+    let mdBits = (motorDirectionToBits(motorDirectionA) << 2) | motorDirectionToBits(motorDirectionB)
+    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorDirectionCommand)",
+      "val1=\(mdBits)", separator: ", ") }
+    try setAddress(dualMotorDriveAddress)
+    try writeBlock(motorDirectionCommand, mdBits)
     usleep(20_000)
+  }
+
+  private func motorDirectionToBits(_ direction: MotorDirection) -> UInt8 {
+    switch direction {
+    case .forward: return 0x02
+    case .backward: return 0x01
+    case .none: return 0x00
+    }
   }
 }
 
