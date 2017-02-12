@@ -133,7 +133,7 @@ private extension GrovePiArduinoBus {
   var motorDirectionCommand: UInt8 { return 0xAA }
 
   func write(motorGearA: UInt8, motorGearB: UInt8) throws {
-    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorDirectionCommand)",
+    if GrovePiBus.printCommands { print("\(Date.hhmmssSSS) Address=\(dualMotorDriveAddress) Write other command=\(motorGearCommand)",
       "val1=\(motorGearA)", "val2=\(motorGearB)", separator: ", ") }
     try setAddress(dualMotorDriveAddress)
     try writeBlock(motorGearCommand, motorGearA, motorGearB)
