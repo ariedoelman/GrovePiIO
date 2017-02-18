@@ -27,7 +27,11 @@ public struct DisplayText: GrovePiOutputValueType, CustomStringConvertible {
   let text: String?
   let noRefresh: Bool
 
-  public var description: String { return "DisplayText(rgbColor: \(rgbColor), text: \(text), noRefresh: \(noRefresh))" }
+  public var description: String {
+    let rgbColor = self.rgbColor != nil ? self.rgbColor!.description : "-"
+    let text = self.text ?? ""
+    return "DisplayText(rgbColor: \(rgbColor), text: \(text), noRefresh: \(noRefresh))"
+  }
 
   private init(rgbColor: RGBColor?, text: String?, noRefresh: Bool) {
     self.rgbColor = rgbColor
