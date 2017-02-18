@@ -51,7 +51,9 @@ public struct DisplayText: GrovePiOutputValueType, CustomStringConvertible {
 
   /// RGBColor and Text, with/without refresh
   public init(rgbColor: RGBColor, text: String, noRefresh: Bool = false) {
-    self.init(rgbColor: rgbColor, text: text, noRefresh: noRefresh)
+    self.rgbColor = rgbColor
+    self.text = text
+    self.noRefresh = noRefresh
   }
 }
 
