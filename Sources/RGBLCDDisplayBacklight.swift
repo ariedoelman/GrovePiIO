@@ -8,16 +8,26 @@
 
 import Foundation
 
-public struct RGBColor {
+public struct RGBColor: CustomStringConvertible {
   let red: UInt8
   let green: UInt8
   let blue: UInt8
+
+  public var description: String { return "RGBColor(red: \(red), green: \(green), blue: \(blue))" }
+
+  public init(red: UInt8 = 0, green: UInt8 = 0, blue: UInt8 = 0) {
+    self.red = red
+    self.green = green
+    self.blue = blue
+  }
 }
 
-public struct DisplayText: GrovePiOutputValueType {
+public struct DisplayText: GrovePiOutputValueType, CustomStringConvertible {
   let rgbColor: RGBColor?
   let text: String?
   let noRefresh: Bool
+
+  public var description: String { return "DisplayText(rgbColor: \(rgbColor), text: \(text), noRefresh: \(noRefresh))" }
 
   private init(rgbColor: RGBColor?, text: String?, noRefresh: Bool) {
     self.rgbColor = rgbColor
@@ -115,12 +125,12 @@ private struct RGB_LCD_DisplayProtocol: GrovePiOutputProtocol {
 }
 
 fileprivate extension GrovePiArduinoBus {
-  var DISPLAY_RGB_ADDR: UInt8 { return 0x62 }
-  var DISPLAY_TEXT_ADDR: UInt8 { return 0x3E }
-  var TEXT_COMMAND: UInt8 { return 0x80 }
+  var displayRGBAddress: UInt8 { return 0x62 }
+  var displayTextAddress: UInt8 { return 0x3E }
+  var textCommand: UInt8 { return 0x80 }
 
   func write(rgbColor: RGBColor) throws {
-    try setAddress(DISPLAY_RGB_ADDR)
+    try setAddress(displayRGBAddress)
     try writeByte(0, val: 0)
     try writeByte(1, val: 0)
     try writeByte(0x08, val: 0xAA)
@@ -130,11 +140,11 @@ fileprivate extension GrovePiArduinoBus {
   }
 
   func write(text: String, noRefresh: Bool) throws {
-    try setAddress(DISPLAY_TEXT_ADDR)
-    try writeByte(TEXT_COMMAND, val: noRefresh ? 0x02 : 0x01)
+    try setAddress(displayTextAddress)
+    try writeByte(textCommand, val: noRefresh ? 0x02 : 0x01)
     usleep(50_000)
-    try writeByte(TEXT_COMMAND, val: 0x0C) // display on, no cursor
-    try writeByte(TEXT_COMMAND, val: 0x28) // 2 lines
+    try writeByte(textCommand, val: 0x0C) // display on, no cursor
+    try writeByte(textCommand, val: 0x28) // 2 lines
     usleep(50_000)
     guard let charBytes: [Int8] = text.cString(using: String.Encoding.isoLatin1) else {
       throw GrovePiError.UnsupportedOutputValue(outputValueDescription: "Text \(text) contains non-ISO LATIN 1 characters")
@@ -146,7 +156,7 @@ fileprivate extension GrovePiArduinoBus {
         if row == 1 {
           break
         }
-        try writeByte(TEXT_COMMAND, val: 0xC0) // new line
+        try writeByte(textCommand, val: 0xC0) // new line
         row += 1
         column = 0
         if charByte == 0x0A {
